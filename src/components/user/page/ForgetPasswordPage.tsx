@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { sendResetCode, resendResetCode } from '../services/passwordService';
 
 export default function ForgotPasswordPage() {

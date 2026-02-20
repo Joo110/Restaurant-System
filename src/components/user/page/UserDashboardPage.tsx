@@ -1,4 +1,4 @@
-import React from 'react';
+// src/components/user/page/UserDashboardPage.tsx
 import { useMyData } from '../hooks/useUser';
 
 export default function DashboardPage() {
@@ -212,7 +212,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        )}
+        )} 
       </div>
     </div>
   );

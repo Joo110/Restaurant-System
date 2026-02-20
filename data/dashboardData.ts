@@ -1,3 +1,4 @@
+// data/dashboardData.ts
 import type {
   SalesTrendPoint,
   BusyHourPoint,
