@@ -1,3 +1,4 @@
+// src/components/dashboard/page/Dashboard.tsx
 import React from "react";
 import StatCard from "../page/StatCard";
 import SalesTrend from "../page/SalesTrend";
@@ -8,11 +9,11 @@ import KitchenPerformance from "../page/KitchenPerformance";
 
 const Dashboard: React.FC = () => {
   return (
-    <div className="flex flex-col gap-5 max-w-5xl mx-auto">
-      {/* Stat Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard icon="💰" title="Total Sales" value="$122,512" change="+4%" />
-        <StatCard icon="📋" title="Total Orders" value="521" change="+2%" />
+    <div className="flex flex-col gap-4 sm:gap-5 w-full">
+      {/* Stat Cards — 1 col mobile → 2 col tablet → 4 col desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <StatCard icon="💰" title="Total Sales"    value="$122,512" change="+4%" />
+        <StatCard icon="📋" title="Total Orders"   value="521"      change="+2%" />
         <StatCard
           icon="🍽️"
           title="Active Tables"
@@ -31,20 +32,19 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* Sales Trend */}
+      {/* Sales Trend — full width */}
       <SalesTrend />
 
-      {/* Middle Row: Top Dishes + Right Column */}
-      <div className="grid grid-cols-[1fr_280px] gap-4">
+      {/* Middle Row — stacks on mobile, side-by-side on lg+ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
         <TopDishes />
-
         <div className="flex flex-col gap-4">
           <OrderStatusChart />
           <BusyHours />
         </div>
       </div>
 
-      {/* Kitchen Performance */}
+      {/* Kitchen Performance — full width */}
       <KitchenPerformance />
     </div>
   );

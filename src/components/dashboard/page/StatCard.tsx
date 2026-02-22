@@ -1,3 +1,4 @@
+// src/components/dashboard/page/StatCard.tsx
 import React from "react";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
@@ -21,25 +22,24 @@ const StatCard: React.FC<StatCardProps> = ({
   const isPositive = parseFloat(change) >= 0;
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2 text-gray-400 text-xs mb-3">
         <span className="text-base">{icon}</span>
-        <span className="font-medium">{title}</span>
+        <span className="font-medium truncate">{title}</span>
       </div>
 
       <div className="flex items-end justify-between mb-1">
-        <p className="text-2xl font-bold text-gray-800 tracking-tight">{value}</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-800 tracking-tight">
+          {value}
+        </p>
         <span
-          className={`text-xs flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full ${
+          className={`text-xs flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
             isPositive
               ? "text-emerald-600 bg-emerald-50"
               : "text-red-500 bg-red-50"
           }`}
         >
-          <ArrowUpRight
-            size={11}
-            className={isPositive ? "" : "rotate-90"}
-          />
+          <ArrowUpRight size={11} className={isPositive ? "" : "rotate-90"} />
           {change}
         </span>
       </div>

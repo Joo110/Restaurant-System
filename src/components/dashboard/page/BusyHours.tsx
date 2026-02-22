@@ -1,3 +1,4 @@
+// src/components/dashboard/page/BusyHours.tsx
 import React from "react";
 import {
   Bar,
@@ -11,10 +12,14 @@ import { busyHoursData } from "../../../../data/dashboardData";
 
 const BusyHours: React.FC = () => {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Busy Hours</h2>
       <ResponsiveContainer width="100%" height={120}>
-        <BarChart data={busyHoursData} barCategoryGap="25%" margin={{ left: -20, right: 0 }}>
+        <BarChart
+          data={busyHoursData}
+          barCategoryGap="25%"
+          margin={{ left: -20, right: 0 }}
+        >
           <XAxis
             dataKey="hour"
             tick={{ fontSize: 10, fill: "#9CA3AF" }}

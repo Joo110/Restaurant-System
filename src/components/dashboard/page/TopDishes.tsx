@@ -1,9 +1,10 @@
+// src/components/dashboard/page/TopDishes.tsx
 import React from "react";
 import { topDishes } from "../../../../data/dashboardData";
 
 const TopDishes: React.FC = () => {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">
         Top selling dishes
       </h2>
@@ -20,18 +21,18 @@ const TopDishes: React.FC = () => {
         {topDishes.map((dish, i) => (
           <div
             key={i}
-            className="grid grid-cols-[1fr_60px_70px] items-center px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
+            className="grid grid-cols-[1fr_60px_70px] items-center px-2 py-2 sm:py-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
           >
-            <div className="flex items-center gap-3 overflow-hidden">
-              <span className="text-xl flex-shrink-0">{dish.img}</span>
-              <span className="text-sm text-gray-700 font-medium truncate">
+            <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+              <span className="text-lg sm:text-xl flex-shrink-0">{dish.img}</span>
+              <span className="text-xs sm:text-sm text-gray-700 font-medium truncate">
                 {dish.name}
               </span>
             </div>
-            <span className="text-center text-sm text-gray-500">
+            <span className="text-center text-xs sm:text-sm text-gray-500">
               {dish.orders}
             </span>
-            <span className="text-right text-sm text-emerald-600 font-semibold">
+            <span className="text-right text-xs sm:text-sm text-emerald-600 font-semibold">
               {dish.revenue}
             </span>
           </div>

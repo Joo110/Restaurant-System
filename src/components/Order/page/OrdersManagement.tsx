@@ -96,16 +96,23 @@ export default function OrdersManagement() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeFilter, setActiveFilter] = useState("All Orders");
   const [search, setSearch] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [showDetailMobile, setShowDetailMobile] = useState(false);
+
+  const handleSelectOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setShowDetailMobile(true);
+  };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 font-sans">
+    <div className="flex min-h-screen bg-slate-100 font-sans relative">
 
       {/* Main */}
-      <main className="flex-1 p-6">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <main className="flex-1 p-4 sm:p-6 min-w-0">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100">
           {/* Filters */}
-          <div className="flex items-center gap-2 mb-5 flex-wrap">
-            <div className="relative flex-1 max-w-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-5 flex-wrap">
+            <div className="relative w-full sm:flex-1 sm:max-w-xs">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               </span>
@@ -117,31 +124,33 @@ export default function OrdersManagement() {
                 className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            {["All Orders", "Take away", "Tables", "Delivery", "Drinks"].map((f) => (
-              <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeFilter === f ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              {["All Orders", "Take away", "Tables", "Delivery", "Drinks"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setActiveFilter(f)}
+                  className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                    activeFilter === f ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => navigate("/dashboard/orders/create")}
-              className="ml-auto px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
+              className="w-full sm:w-auto sm:ml-auto px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
             >
               + Create Order
             </button>
           </div>
 
           {/* Orders Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {orders.map((order, idx) => (
               <div
                 key={idx}
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => handleSelectOrder(order)}
                 className={`rounded-xl border-2 p-4 cursor-pointer transition-all hover:shadow-md ${
                   selectedOrder === order ? "border-blue-500 bg-blue-50/30" : "border-slate-100 hover:border-slate-200"
                 }`}
@@ -188,65 +197,87 @@ export default function OrdersManagement() {
         </div>
       </main>
 
-      {/* Order Detail Panel - only when selected */}
+      {/* Order Detail Panel - Desktop: sidebar | Mobile: bottom sheet */}
       {selectedOrder && (
-        <aside className="w-72 bg-slate-900 text-white p-5 flex flex-col gap-4 shrink-0">
-          <div className="flex items-start justify-between">
+        <>
+          {/* Mobile overlay */}
+          <div
+            className="lg:hidden fixed inset-0 bg-black/40 z-40"
+            onClick={() => { setSelectedOrder(null); setShowDetailMobile(false); }}
+          />
+
+          {/* Panel */}
+          <aside className={`
+            fixed lg:static
+            bottom-0 lg:bottom-auto
+            left-0 right-0 lg:left-auto lg:right-auto
+            z-50 lg:z-auto
+            w-full lg:w-72
+            max-h-[85vh] lg:max-h-none
+            overflow-y-auto
+            bg-slate-900 text-white
+            p-5
+            flex flex-col gap-4
+            rounded-t-2xl lg:rounded-none
+            shrink-0
+          `}>
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-bold text-lg">Order #{selectedOrder.id}</h2>
+                <p className="text-slate-400 text-sm">{selectedOrder.minsReady} mins to be ready</p>
+              </div>
+              <button
+                onClick={() => { setSelectedOrder(null); setShowDetailMobile(false); }}
+                className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
             <div>
-              <h2 className="font-bold text-lg">Order #{selectedOrder.id}</h2>
-              <p className="text-slate-400 text-sm">{selectedOrder.minsReady} mins to be ready</p>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-sm" />
+                <span className="text-sm font-semibold text-slate-300">Order Items</span>
+              </div>
+              <div className="space-y-2">
+                {selectedOrder.orderItems.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-slate-300">{item.qty}x {item.name}</span>
+                    <span className="text-white font-medium">${item.price}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
-            >
-              ×
+
+            <div className="border-t border-slate-700 pt-3 space-y-1.5">
+              <div className="flex justify-between text-sm text-slate-400">
+                <span>Subtotal</span><span>${selectedOrder.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-slate-400">
+                <span>Tax</span><span>${selectedOrder.tax.toFixed(2)}</span>
+              </div>
+              <div className="border-t border-slate-700 pt-2 flex justify-between font-bold text-base">
+                <span>Total</span><span className="text-blue-400">${selectedOrder.total}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors flex items-center justify-center gap-1.5">
+                🖨 Print Ticket
+              </button>
+              <button
+                onClick={() => navigate(`/dashboard/orders/${selectedOrder.id}/edit`)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors flex items-center justify-center gap-1.5"
+              >
+                ✏ Edit Order
+              </button>
+            </div>
+
+            <button className="w-full py-3 rounded-xl bg-blue-500 text-sm font-bold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+              ✓ Mark as Ready
             </button>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-sm" />
-              <span className="text-sm font-semibold text-slate-300">Order Items</span>
-            </div>
-            <div className="space-y-2">
-              {selectedOrder.orderItems.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-slate-300">{item.qty}x {item.name}</span>
-                  <span className="text-white font-medium">${item.price}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-slate-700 pt-3 space-y-1.5">
-            <div className="flex justify-between text-sm text-slate-400">
-              <span>Subtotal</span><span>${selectedOrder.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-slate-400">
-              <span>Tax</span><span>${selectedOrder.tax.toFixed(2)}</span>
-            </div>
-            <div className="border-t border-slate-700 pt-2 flex justify-between font-bold text-base">
-              <span>Total</span><span className="text-blue-400">${selectedOrder.total}</span>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors flex items-center justify-center gap-1.5">
-              🖨 Print Ticket
-            </button>
-            <button
-              onClick={() => navigate(`/dashboard/orders/${selectedOrder.id}/edit`)}
-              className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors flex items-center justify-center gap-1.5"
-            >
-              ✏ Edit Order
-            </button>
-          </div>
-
-          <button className="w-full py-3 rounded-xl bg-blue-500 text-sm font-bold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
-            ✓ Mark as Ready
-          </button>
-        </aside>
+          </aside>
+        </>
       )}
     </div>
   );

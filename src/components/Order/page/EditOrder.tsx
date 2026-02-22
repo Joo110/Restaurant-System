@@ -25,30 +25,30 @@ export default function EditOrder() {
     );
   };
 
-  const subtotal = 60.50;
-  const tax = 12.50;
-  const total = 72;
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
+  const tax = parseFloat((subtotal * 0.15).toFixed(2));
+  const total = parseFloat((subtotal + tax).toFixed(2));
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Edit Order #3918</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Edit Order #3918</h1>
           <p className="text-slate-400 text-sm mt-1">Modify items and instructions</p>
         </div>
 
         <div className="border-t border-slate-200 mb-6" />
 
-        <div className="flex gap-6">
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Left - Items */}
-          <div className="flex-1">
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+          <div className="flex-1 min-w-0">
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
               <div className="space-y-4">
                 {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 py-2">
+                  <div key={item.id} className="flex items-center gap-3 sm:gap-4 py-2">
                     {/* Qty Control */}
-                    <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-2 py-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2 border border-slate-200 rounded-xl px-2 py-1.5 shrink-0">
                       <button
                         onClick={() => updateQty(item.id, -1)}
                         className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-blue-500 font-bold transition-colors"
@@ -65,10 +65,10 @@ export default function EditOrder() {
                     </div>
 
                     {/* Name */}
-                    <span className="flex-1 text-slate-700 font-medium text-base">{item.name}</span>
+                    <span className="flex-1 text-slate-700 font-medium text-sm sm:text-base truncate">{item.name}</span>
 
                     {/* Price */}
-                    <span className="text-blue-500 font-bold text-base">${item.unitPrice * item.qty}</span>
+                    <span className="text-blue-500 font-bold text-sm sm:text-base shrink-0">${item.unitPrice * item.qty}</span>
                   </div>
                 ))}
               </div>
@@ -92,7 +92,7 @@ export default function EditOrder() {
           </div>
 
           {/* Right - Order Summary */}
-          <div className="w-64 bg-slate-900 rounded-2xl p-5 text-white flex flex-col gap-4 h-fit sticky top-6">
+          <div className="w-full lg:w-64 bg-slate-900 rounded-2xl p-5 text-white flex flex-col gap-4 h-fit lg:sticky lg:top-6">
             <h2 className="text-lg font-bold">Order Summary</h2>
 
             <div className="space-y-2">

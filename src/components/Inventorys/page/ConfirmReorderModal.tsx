@@ -13,24 +13,25 @@ const suppliers = [
 ];
 
 export default function ConfirmReorderModal({ item, onClose }: Props) {
-  const qty = 15;
+  const qty       = 15;
   const unitPrice = item.unitPrice;
-  const subtotal = qty * unitPrice;
+  const subtotal  = qty * unitPrice;
   const deliveryFee = 15;
-  const total = subtotal + deliveryFee;
+  const total     = subtotal + deliveryFee;
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 font-sans">
-        <h2 className="text-xl font-bold text-slate-900">Confirm Reorder</h2>
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 sm:p-6 font-sans max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900">Confirm Reorder</h2>
         <p className="text-sm text-slate-400 mt-0.5 mb-5">
           Review and place your order for{" "}
           <span className="text-blue-500 font-semibold">{item.name}</span>
         </p>
 
         <div className="border-t border-slate-100 pt-5 space-y-4">
-          {/* Qty + Delivery */}
-          <div className="grid grid-cols-2 gap-3">
+
+          {/* Qty + Delivery — stack on xs, side by side sm+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Order Quantity</label>
               <div className="relative">
@@ -63,9 +64,7 @@ export default function ConfirmReorderModal({ item, onClose }: Props) {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Supplier</label>
             <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
-              {suppliers.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
+              {suppliers.map((s) => <option key={s}>{s}</option>)}
             </select>
             <p className="text-xs text-slate-400 mt-1">Unit Price: ${unitPrice} / {item.unit}</p>
           </div>
@@ -76,8 +75,8 @@ export default function ConfirmReorderModal({ item, onClose }: Props) {
           {/* Cost breakdown */}
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-slate-500">
-              <span>Subtotal ( {qty}{item.unit} * ${unitPrice} )</span>
-              <span className="text-slate-700 font-medium">${subtotal}</span>
+              <span className="truncate pr-2">Subtotal ( {qty}{item.unit} × ${unitPrice} )</span>
+              <span className="text-slate-700 font-medium flex-shrink-0">${subtotal}</span>
             </div>
             <div className="flex justify-between text-slate-500">
               <span>Delivery Fee</span>
@@ -94,11 +93,11 @@ export default function ConfirmReorderModal({ item, onClose }: Props) {
         <div className="flex gap-3 mt-6 justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+            className="px-4 sm:px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
-          <button className="px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors">
+          <button className="px-4 sm:px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors">
             Confirm Order
           </button>
         </div>

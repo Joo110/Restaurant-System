@@ -4,13 +4,12 @@ type Props = {
   onClose: () => void;
 };
 
-
 export default function AddSupplierModal({ onClose }: Props) {
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 font-sans max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md p-6 font-sans max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold text-slate-900">Add Supplier</h2>
-        <p className="text-sm text-slate-400 mt-0.5 mb-5">Expand your network by onboarding a anew partner.</p>
+        <p className="text-sm text-slate-400 mt-0.5 mb-5">Expand your network by onboarding a new partner.</p>
 
         <div className="border-t border-slate-100 pt-5 space-y-4">
           {/* Supplier Company */}
@@ -26,7 +25,7 @@ export default function AddSupplierModal({ onClose }: Props) {
           </div>
 
           {/* Main Contact + Business Email */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Main Contact<span className="text-red-500">*</span>
@@ -50,7 +49,7 @@ export default function AddSupplierModal({ onClose }: Props) {
           </div>
 
           {/* Support Phone + Website */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Support Phone</label>
               <input
@@ -79,7 +78,6 @@ export default function AddSupplierModal({ onClose }: Props) {
             />
           </div>
 
-          {/* Dashed divider */}
           <div className="border-t-2 border-dashed border-slate-200" />
 
           {/* Categories */}
@@ -92,11 +90,10 @@ export default function AddSupplierModal({ onClose }: Props) {
             />
           </div>
 
-          {/* Dashed divider */}
           <div className="border-t-2 border-dashed border-slate-200" />
 
           {/* Bank + Account Number */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Bank</label>
               <input
@@ -120,11 +117,11 @@ export default function AddSupplierModal({ onClose }: Props) {
         <div className="flex gap-3 mt-6 justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+            className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
-          <button className="px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors">
+          <button className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors">
             Add New Supplier
           </button>
         </div>

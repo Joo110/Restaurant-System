@@ -1,240 +1,190 @@
-// src/components/Staff/page/EmployeeAttendanceDetail.tsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import EditAttendanceModal from "./EditAttendanceModal";
-import AddExtraShiftModal from "../../payroll/page/AddExtraShiftModal";
+// src/components/Inventory/page/SupplierManagement.tsx
+import React, { useState } from "react";
+import AddSupplierModal from "../../Supplier/page/Addsuppliermodal";
+import EditSupplierModal from "../../Supplier/page/Editsuppliermodal";
 
-type RequestStatus = "Pending" | "refused" | "Accept";
+type Supplier = {
+  id: number;
+  company: string;
+  contact: string;
+  email: string;
+  phone: string;
+  categories: string[];
+  bank: string;
+  status: "Active" | "Inactive";
+  itemsSupplied: number;
+};
 
-const requests = [
-  { name: "Mohamed Morsy", dates: "Oct 02, 2023 - Oct 03, 2023", days: 2, reason: "Flu", status: "Pending" as RequestStatus },
-  { name: "Mohamed Morsy", dates: "Oct 02, 2023 - Oct 03, 2023", days: 2, reason: "Flu", status: "refused" as RequestStatus },
-  { name: "Mohamed Morsy", dates: "Aug 08, 2024 - Aug 012, 2023", days: 4, reason: "Flu", status: "Accept" as RequestStatus },
+const mockSuppliers: Supplier[] = [
+  { id: 1, company: "Dina Flour Egyptian Kitchen", contact: "Ahmed Ali", email: "contact@Dinasupplier.com", phone: "+20 12125626", categories: ["Flour", "Salt", "Ketchup", "Milk"], bank: "Cairo", status: "Active", itemsSupplied: 8 },
+  { id: 2, company: "Farmery VegetablesSupplies", contact: "Sara Mahmoud", email: "contact@farmery.com", phone: "+20 10234567", categories: ["Tomatoes", "Onion", "Pepper"], bank: "CIB", status: "Active", itemsSupplied: 5 },
+  { id: 3, company: "OceanFresh Supplies", contact: "Karim Hassan", email: "contact@oceanfresh.com", phone: "+20 11345678", categories: ["Chicken", "Beef", "Fish"], bank: "NBE", status: "Active", itemsSupplied: 6 },
+  { id: 4, company: "Delta Dairy Group", contact: "Nour Ibrahim", email: "contact@deltadairy.com", phone: "+20 12456789", categories: ["Milk", "Cheese", "Butter", "Yogurt"], bank: "Banque Misr", status: "Inactive", itemsSupplied: 4 },
+  { id: 5, company: "Cairo Spice Co.", contact: "Mona Saad", email: "contact@cairospice.com", phone: "+20 10567890", categories: ["Spices", "Herbs", "Seasoning"], bank: "Alex Bank", status: "Active", itemsSupplied: 12 },
+  { id: 6, company: "Nile Beverages Ltd.", contact: "Omar Fathi", email: "contact@nilebev.com", phone: "+20 11678901", categories: ["Juices", "Soft Drinks", "Water"], bank: "Cairo", status: "Active", itemsSupplied: 7 },
 ];
 
-const attendanceRows = [
-  { date: "15 / 2 / 2026", checkIn: "12:00AM", checkOut: "——", hours: "4h20m", status: "Present" },
-  { date: "14 / 2 / 2026", checkIn: "——", checkOut: "——", hours: "——", status: "Absent" },
-  { date: "15 / 2 / 2026", checkIn: "12:00AM", checkOut: "——", hours: "4h20m", status: "Absent" },
-  { date: "12 / 2 / 2026", checkIn: "12:00AM", checkOut: "——", hours: "4h20m", status: "Present" },
-  { date: "11 / 2 / 2026", checkIn: "12:00AM", checkOut: "——", hours: "4h20m", status: "Present" },
-  { date: "15 / 2 / 2026", checkIn: "12:00AM", checkOut: "——", hours: "4h20m", status: "Present" },
-];
+export default function SupplierManagement() {
+  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
+  const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
+  const [activeFilter, setActiveFilter] = useState("All");
 
-const statusStyle: Record<string, string> = {
-  Present: "bg-green-100 text-green-700",
-  Absent: "bg-red-100 text-red-500",
-  Late: "bg-orange-100 text-orange-600",
-};
-
-const requestBadge: Record<RequestStatus, string> = {
-  Pending: "bg-orange-100 text-orange-600",
-  refused: "bg-slate-100 text-slate-500",
-  Accept: "bg-green-100 text-green-700",
-};
-
-const calendarDays = Array.from({ length: 30 }, (_, i) => i + 1);
-const presentDays = [4, 5, 7, 8, 11, 12, 14, 15, 18, 19, 20, 21, 22, 25, 26, 29];
-const lateDays = [6, 13];
-const onLeaveDays = [19, 20];
-const today = 27;
-const startOffset = 3;
-const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const getDayStyle = (day: number) => {
-  if (day === today) return "bg-blue-500 text-white font-bold rounded-full";
-  if (lateDays.includes(day)) return "bg-orange-100 text-orange-600 font-semibold rounded-full";
-  if (onLeaveDays.includes(day)) return "bg-blue-100 text-blue-500 font-semibold rounded-full";
-  if (presentDays.includes(day)) return "bg-green-100 text-green-700 font-semibold rounded-full";
-  return "text-slate-300";
-};
-
-export default function EmployeeAttendanceDetail() {
-  const navigate = useNavigate();
-  const [showEdit, setShowEdit] = useState(false);
-  const [showExtraShift, setShowExtraShift] = useState(false);
-  const [showAllRequests, setShowAllRequests] = useState(false);
-  const displayedRequests = showAllRequests ? [...requests, ...requests] : requests;
+  const filtered = suppliers.filter((s) => {
+    const matchSearch =
+      s.company.toLowerCase().includes(search.toLowerCase()) ||
+      s.contact.toLowerCase().includes(search.toLowerCase());
+    if (activeFilter === "Active") return matchSearch && s.status === "Active";
+    if (activeFilter === "Inactive") return matchSearch && s.status === "Inactive";
+    return matchSearch;
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Breadcrumb */}
-        <p className="text-xs text-slate-400 mb-4">
-          <span className="hover:text-blue-500 cursor-pointer" onClick={() => navigate("/dashboard")}>Home</span>
-          {" / "}
-          <span className="hover:text-blue-500 cursor-pointer" onClick={() => navigate("/dashboard/attendance")}>Attendance</span>
-          {" / "}
-          <span className="text-blue-500 font-medium">Mohamed Morsy</span>
-        </p>
-
-        {/* Profile Card */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-rose-200 flex items-center justify-center text-xl shrink-0">👤</div>
-              <div>
-                <h1 className="text-base font-bold text-slate-900">Mohamed Morsy</h1>
-                <p className="text-sm text-slate-500 mb-2">Head Chef</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Active Status</span>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">Full Time</span>
-                  <span className="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs font-semibold rounded-full">Joined 15 / 01 / 2024</span>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowExtraShift(true)}
-              className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium hover:bg-slate-50 transition-colors">
-              + Add Extra Shift
-            </button>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <button className="text-sm font-medium text-blue-600 border-b-2 border-blue-600 pb-1">
-              Leave & Attendance
-            </button>
-          </div>
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-5 font-sans">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Supplier Management</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Manage and track all your supply chain partners</p>
         </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="w-full sm:w-auto px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors"
+        >
+          + Add Supplier
+        </button>
+      </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          {/* Left col */}
-          <div className="col-span-2 flex flex-col gap-4">
-            {/* Calendar */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-slate-800 text-sm">Attendance Overview</h3>
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <button className="hover:text-blue-500">‹</button>
-                  <span>May 2025</span>
-                  <button className="hover:text-blue-500">›</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[
-                  { icon: "✅", label: "PRESENT", value: 18, color: "text-green-600", bg: "bg-green-50" },
-                  { icon: "⏰", label: "LATE", value: 2, color: "text-orange-500", bg: "bg-orange-50" },
-                  { icon: "❌", label: "ABSENT", value: 0, color: "text-red-500", bg: "bg-red-50" },
-                  { icon: "🏖", label: "ON LEAVE", value: 2, color: "text-blue-500", bg: "bg-blue-50" },
-                ].map((s) => (
-                  <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center`}>
-                    <span className="text-sm">{s.icon}</span>
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wide mt-0.5">{s.label}</p>
-                    <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-1 text-center">
-                {weekDays.map((d) => (
-                  <div key={d} className="text-[10px] text-slate-400 font-medium py-1">{d}</div>
-                ))}
-                {Array.from({ length: startOffset }).map((_, i) => <div key={`e-${i}`} />)}
-                {calendarDays.map((day) => (
-                  <div key={day} className={`w-7 h-7 mx-auto flex items-center justify-center text-[11px] cursor-pointer ${getDayStyle(day)}`}>
-                    {day}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Attendance Table */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="border-b border-slate-100 bg-slate-50">
-                  <tr className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">
-                    <th className="py-2.5 px-4 text-left">Date</th>
-                    <th className="py-2.5 px-4 text-left">Check In</th>
-                    <th className="py-2.5 px-4 text-left">Check Out</th>
-                    <th className="py-2.5 px-4 text-left">Total Hours</th>
-                    <th className="py-2.5 px-4 text-left">Status</th>
-                    <th className="py-2.5 px-4 text-left">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendanceRows.map((row, i) => (
-                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60">
-                      <td className="py-2.5 px-4 text-slate-600">{row.date}</td>
-                      <td className="py-2.5 px-4 text-slate-600">{row.checkIn}</td>
-                      <td className="py-2.5 px-4 text-slate-600">{row.checkOut}</td>
-                      <td className="py-2.5 px-4 text-slate-600">{row.hours}</td>
-                      <td className="py-2.5 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyle[row.status] || "bg-slate-100 text-slate-500"}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <button
-                          onClick={() => setShowEdit(true)}
-                          className={`text-slate-400 hover:text-blue-500 transition-colors ${row.status === "Absent" ? "text-slate-800" : ""}`}
-                        >
-                          {row.status === "Absent" ? "⚫" : "✏"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="px-4 py-2 border-t border-slate-50">
-                <p className="text-[10px] text-slate-400">Showing 1-6 from 100 data</p>
-              </div>
-            </div>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        {[
+          { label: "Total Suppliers", value: suppliers.length, color: "text-slate-800" },
+          { label: "Active", value: suppliers.filter((s) => s.status === "Active").length, color: "text-green-600" },
+          { label: "Inactive", value: suppliers.filter((s) => s.status === "Inactive").length, color: "text-red-500" },
+          { label: "Total Items Supplied", value: suppliers.reduce((a, s) => a + s.itemsSupplied, 0), color: "text-blue-600" },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+            <p className="text-xs text-slate-400 mb-1">{stat.label}</p>
+            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
           </div>
+        ))}
+      </div>
 
-          {/* Right col */}
-          <div className="flex flex-col gap-4">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-              <h3 className="font-bold text-slate-800 text-sm mb-3">Quick Actions</h3>
-              <button className="w-full py-2.5 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
-                ✉ Contact Employee
-              </button>
-            </div>
-
-            {/* Recent Requests */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-              <h3 className="font-bold text-slate-800 text-sm mb-3">Recent Requests</h3>
-              <div className="space-y-3">
-                {displayedRequests.map((req, i) => (
-                  <div key={i} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                    <div className="flex items-start justify-between mb-0.5">
-                      <p className="text-xs font-semibold text-slate-700">{req.name}</p>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${requestBadge[req.status]}`}>
-                        {req.status}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-400">{req.dates}</p>
-                    <p className="text-[10px] text-slate-500">{req.days} Days . Reason : {req.reason}</p>
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={() => setShowAllRequests(!showAllRequests)}
-                className="mt-3 w-full text-center text-xs text-blue-500 font-medium hover:underline"
-              >
-                {showAllRequests ? "Hide Leave History" : "View All Leave History"}
-              </button>
-            </div>
-
-            {/* Manager Notes */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-              <h3 className="font-bold text-slate-800 text-sm mb-3">Manager Notes</h3>
-              <button className="text-xs text-blue-500 font-medium mb-3 hover:underline">Add Note</button>
-              <p className="text-[10px] text-slate-300 mb-3">——</p>
-              <div className="border-t border-slate-100 pt-3">
-                <div className="flex items-center justify-between mb-1">
-                  <button className="text-xs text-blue-500 font-medium hover:underline">Add Note</button>
-                  <span className="text-[10px] text-slate-400">06 / May</span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Employee has been late twice this month, advised to improve punctuality
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Filters + Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 sm:max-w-xs">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search supplier or contact..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex gap-2">
+          {["All", "Active", "Inactive"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setActiveFilter(f)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                activeFilter === f
+                  ? "bg-blue-500 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       </div>
 
-      {showEdit && <EditAttendanceModal onClose={() => setShowEdit(false)} />}
-      {showExtraShift && <AddExtraShiftModal onClose={() => setShowExtraShift(false)} />}
+      {/* Table - scrollable on small screens */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="border-b border-slate-100 bg-slate-50">
+              <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wide">
+                <th className="py-3 px-4 sm:px-5 text-left">Supplier</th>
+                <th className="py-3 px-4 sm:px-5 text-left">Contact</th>
+                <th className="py-3 px-4 sm:px-5 text-left">Categories</th>
+                <th className="py-3 px-4 sm:px-5 text-left">Bank</th>
+                <th className="py-3 px-4 sm:px-5 text-left">Items</th>
+                <th className="py-3 px-4 sm:px-5 text-left">Status</th>
+                <th className="py-3 px-4 sm:px-5 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s) => (
+                <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3.5 px-4 sm:px-5">
+                    <p className="font-semibold text-slate-800">{s.company}</p>
+                    <p className="text-xs text-slate-400">{s.email}</p>
+                  </td>
+                  <td className="py-3.5 px-4 sm:px-5">
+                    <p className="text-slate-700">{s.contact}</p>
+                    <p className="text-xs text-slate-400">{s.phone}</p>
+                  </td>
+                  <td className="py-3.5 px-4 sm:px-5">
+                    <div className="flex flex-wrap gap-1">
+                      {s.categories.slice(0, 2).map((c) => (
+                        <span key={c} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
+                          {c}
+                        </span>
+                      ))}
+                      {s.categories.length > 2 && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full text-xs font-medium">
+                          +{s.categories.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-4 sm:px-5 text-slate-600">{s.bank}</td>
+                  <td className="py-3.5 px-4 sm:px-5">
+                    <span className="font-semibold text-slate-700">{s.itemsSupplied}</span>
+                    <span className="text-xs text-slate-400 ml-1">items</span>
+                  </td>
+                  <td className="py-3.5 px-4 sm:px-5">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                      {s.status}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-4 sm:px-5">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditSupplier(s)}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        ✏ Edit
+                      </button>
+                      <button
+                        onClick={() => setSuppliers((prev) => prev.filter((x) => x.id !== s.id))}
+                        className="px-3 py-1.5 rounded-lg border border-red-100 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filtered.length === 0 && (
+          <div className="py-12 text-center text-slate-400 text-sm">
+            No suppliers found
+          </div>
+        )}
+      </div>
+
+      {showAdd && <AddSupplierModal onClose={() => setShowAdd(false)} />}
+      {editSupplier && <EditSupplierModal onClose={() => setEditSupplier(null)} />}
     </div>
   );
 }

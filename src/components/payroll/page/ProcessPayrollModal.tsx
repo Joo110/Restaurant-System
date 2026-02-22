@@ -9,8 +9,8 @@ export default function ProcessPayrollModal({ onClose }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 font-sans">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm p-6 font-sans max-h-[90vh] overflow-y-auto">
 
         {step === 1 ? (
           <>
@@ -43,12 +43,12 @@ export default function ProcessPayrollModal({ onClose }: Props) {
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
+              <button onClick={onClose} className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
               <button
                 onClick={() => setStep(2)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
               >
                 ▶ Process Payroll
               </button>
@@ -85,12 +85,12 @@ export default function ProcessPayrollModal({ onClose }: Props) {
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => setStep(1)} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
+              <button onClick={() => setStep(1)} className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
               <button
                 onClick={onClose}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
               >
                 ▶ Process Payroll
               </button>

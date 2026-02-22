@@ -1,3 +1,4 @@
+// src/components/dashboard/page/SalesTrend.tsx
 import React, { useState } from "react";
 import { Filter, TrendingUp } from "lucide-react";
 import {
@@ -15,17 +16,16 @@ const SalesTrend: React.FC = () => {
   const [period, setPeriod] = useState("Weekly");
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-      <div className="flex items-start justify-between mb-5">
+    <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
+      {/* Header — stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-5">
         <div>
-          <p className="text-sm font-semibold text-gray-700 mb-2">
-            Sales Trend
-          </p>
-          <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-gray-700 mb-2">Sales Trend</p>
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm shadow-emerald-200">
               <TrendingUp size={12} className="text-white" />
             </span>
-            <span className="text-xl font-bold text-gray-800">
+            <span className="text-lg sm:text-xl font-bold text-gray-800">
               $123,366.35
             </span>
             <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
@@ -33,6 +33,7 @@ const SalesTrend: React.FC = () => {
             </span>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <select
             value={period}
@@ -50,20 +51,25 @@ const SalesTrend: React.FC = () => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={200}>
+      {/* Chart */}
+      <ResponsiveContainer width="100%" height={180}>
         <LineChart
           data={salesTrendData}
           margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="#F3F4F6"
+            vertical={false}
+          />
           <XAxis
             dataKey="day"
-            tick={{ fontSize: 11, fill: "#9CA3AF" }}
+            tick={{ fontSize: 10, fill: "#9CA3AF" }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: "#9CA3AF" }}
+            tick={{ fontSize: 10, fill: "#9CA3AF" }}
             axisLine={false}
             tickLine={false}
           />
