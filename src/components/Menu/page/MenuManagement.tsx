@@ -44,7 +44,7 @@ export default function MenuManagement({ onAddItem, onEditItem, items = SAMPLE_I
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [searchQuery,    setSearchQuery]    = useState("");
   const [selectedItem,   setSelectedItem]   = useState<MenuItem | null>(null);
-  const [showStats,      setShowStats]      = useState(false);
+  const [,  setShowStats]      = useState(false);
 
   const filtered = items.filter((item) => {
     const matchCat    = activeCategory === "All Items" || item.category === activeCategory;

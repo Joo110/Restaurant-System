@@ -96,8 +96,7 @@ export default function OrdersManagement() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeFilter, setActiveFilter] = useState("All Orders");
   const [search, setSearch] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showDetailMobile, setShowDetailMobile] = useState(false);
+  const [, setShowDetailMobile] = useState(false);
 
   const handleSelectOrder = (order: Order) => {
     setSelectedOrder(order);

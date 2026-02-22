@@ -1,5 +1,5 @@
 // src/components/Inventory/page/SupplierManagement.tsx
-import React, { useState } from "react";
+import  { useState } from "react";
 import AddSupplierModal from "../../Supplier/page/Addsuppliermodal";
 import EditSupplierModal from "../../Supplier/page/Editsuppliermodal";
 
