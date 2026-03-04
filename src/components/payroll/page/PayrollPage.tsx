@@ -1,45 +1,63 @@
-// src/components/Staff/page/PayrollPage.tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProcessPayrollModal from "./ProcessPayrollModal";
+import { usePayrolls } from "../hook/usePayroll";
 
-type PayrollRecord = {
-  id: number;
-  name: string;
-  role: string;
-  grossPay: number;
-  bonus: number | null;
-  deductions: number | null;
-  netPay: number;
-  status: "Active";
-};
-
-const records: PayrollRecord[] = [
-  { id: 1, name: "Mohamed Morsy", role: "Head Chef", grossPay: 4300, bonus: 900, deductions: 300, netPay: 4900, status: "Active" },
-  { id: 2, name: "Mohamed Morsy", role: "Head Chef", grossPay: 4300, bonus: 900, deductions: 300, netPay: 4900, status: "Active" },
-  { id: 3, name: "Mohamed Morsy", role: "Head Chef", grossPay: 4300, bonus: null, deductions: 300, netPay: 4000, status: "Active" },
-  { id: 4, name: "Mohamed Morsy", role: "Head Chef", grossPay: 4300, bonus: null, deductions: null, netPay: 4300, status: "Active" },
-  { id: 5, name: "Mohamed Morsy", role: "Head Chef", grossPay: 4300, bonus: 900, deductions: null, netPay: 5200, status: "Active" },
-  { id: 6, name: "Mohamed Morsy", role: "Head Chef", grossPay: 4300, bonus: 900, deductions: null, netPay: 5200, status: "Active" },
-];
+function fmtCurrency(n?: number) {
+  if (n == null) return "—";
+  return `$${Number(n).toLocaleString()}`;
+}
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function PayrollPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showProcess, setShowProcess] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const limit = 10;
 
-  const filtered = records.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
+  // fetch payrolls (API returns { stats, data, paginationResult, ... })
+  const { data, isLoading } = usePayrolls({
+    limit,
+    page: currentPage,
+    sort: "-month,year",
+    // you may request fields/populate if backend supports
+  });
+
+  // stats from API
+  const stats = data?.stats;
+
+  // list records from API
+  const recordsRaw = data?.data ?? [];
+
+  const records = useMemo(() => recordsRaw.map((p: any) => {
+    const id = p.id ?? p._id ?? p.payrollId ?? "";
+    const name = p.employeeName ?? p.employee?.fullName ?? `#${String(p.employeeId ?? "")}`;
+    const role = p.employee?.role ?? p.role ?? "—";
+    const gross = p.grossSalary ?? p.baseSalary ?? 0;
+    const bonus = p.bonus ?? 0;
+    const deductions = p.deductions ?? 0;
+    const net = p.netSalary ?? 0;
+    const status = (p.paymentStatus ?? "pending").toString();
+    return { id, name, role, gross, bonus, deductions, net, status, raw: p };
+  }), [recordsRaw]);
+
+  const totalPayrollCost = stats?.financial?.totalNet ?? records.reduce((s, r) => s + Number(r.net || 0), 0);
+
+  const filtered = records.filter((r) =>
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.role.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-5 font-sans">
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         {[
-          { label: "Total Payroll Cost", icon: "💰", value: "$122,512" },
-          { label: "Deductions", icon: "📋", value: "$2,180" },
-          { label: "Bonus / Overtime", icon: "⭐", value: "$17,150" },
-          { label: "Next Pay Date", icon: "📅", value: "Nov 30, 2026" },
+          { label: "Total Payroll Cost", icon: "💰", value: fmtCurrency(totalPayrollCost) },
+          { label: "Deductions", icon: "📋", value: fmtCurrency(stats?.financial?.totalTax ?? stats?.financial?.totalTax ?? 0) },
+          { label: "Bonus / Overtime", icon: "⭐", value: fmtCurrency(stats?.financial?.totalBonus ?? 0) },
+          { label: "Payroll Count", icon: "📄", value: stats?.total ?? records.length },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <div className="flex items-center gap-1.5 mb-1">
@@ -99,22 +117,22 @@ export default function PayrollPage() {
                 >
                   <td className="py-3 px-4 sm:px-5 text-slate-700 font-medium">{r.name}</td>
                   <td className="py-3 px-4 sm:px-5 text-slate-500">{r.role}</td>
-                  <td className="py-3 px-4 sm:px-5 text-slate-700">{r.grossPay.toLocaleString()}.00</td>
+                  <td className="py-3 px-4 sm:px-5 text-slate-700">{fmtCurrency(r.gross)}</td>
                   <td className="py-3 px-4 sm:px-5">
-                    {r.bonus !== null ? (
-                      <span className="text-green-600 font-medium">{r.bonus.toLocaleString()}.00</span>
+                    {r.bonus ? (
+                      <span className="text-green-600 font-medium">{fmtCurrency(r.bonus)}</span>
                     ) : (
                       <span className="text-slate-300">——</span>
                     )}
                   </td>
                   <td className="py-3 px-4 sm:px-5">
-                    {r.deductions !== null ? (
-                      <span className="text-red-500 font-medium">{r.deductions.toLocaleString()}.00</span>
+                    {r.deductions ? (
+                      <span className="text-red-500 font-medium">{fmtCurrency(r.deductions)}</span>
                     ) : (
                       <span className="text-slate-300">——</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 sm:px-5 text-slate-700 font-medium">{r.netPay.toLocaleString()}.00</td>
+                  <td className="py-3 px-4 sm:px-5 text-slate-700 font-medium">{fmtCurrency(r.net)}</td>
                   <td className="py-3 px-4 sm:px-5">
                     <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
                       {r.status}
@@ -122,16 +140,33 @@ export default function PayrollPage() {
                   </td>
                 </tr>
               ))}
+              {isLoading && (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">Loading…</td>
+                </tr>
+              )}
+              {!isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">No payroll records found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-slate-50">
-          <span className="text-xs text-slate-400">Showing 1-6 from 100 data</span>
+          <span className="text-xs text-slate-400">
+           {data?.paginationResult?.totalDocs
+  ? `Showing ${((data.paginationResult.currentPage ?? currentPage) - 1) * (data.paginationResult.limit ?? limit) + 1}–${Math.min((data.paginationResult.currentPage ?? currentPage) * (data.paginationResult.limit ?? limit), data.paginationResult.totalDocs)} of ${data.paginationResult.totalDocs}`
+  : `Showing ${records.length} records`}
+          </span>
           <div className="flex items-center gap-1">
-            <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs">‹</button>
-            {[1, 2, 3].map((p) => (
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs"
+            >‹</button>
+            {Array.from({ length: Math.min(data?.paginationResult?.totalPages ?? 1, 5) }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
                 onClick={() => setCurrentPage(p)}
@@ -142,12 +177,15 @@ export default function PayrollPage() {
                 {p}
               </button>
             ))}
-            <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs">›</button>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs"
+            >›</button>
           </div>
         </div>
       </div>
 
-      {showProcess && <ProcessPayrollModal onClose={() => setShowProcess(false)} />}
+      {showProcess && <ProcessPayrollModal onClose={() => setShowProcess(false)} totalAmount={totalPayrollCost} />}
     </div>
   );
 }

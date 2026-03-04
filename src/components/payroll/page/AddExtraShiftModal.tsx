@@ -2,6 +2,7 @@
 import { useState } from "react";
 import AddSupplierModal from "../../Supplier/page/Addsuppliermodal";
 import EditSupplierModal from "../../Supplier/page/Editsuppliermodal";
+import type { Supplier as ServiceSupplier } from "../../Supplier/services/supplierService";
 
 type Supplier = {
   id: number;
@@ -14,13 +15,6 @@ type Supplier = {
   status: "Active" | "Inactive";
   itemsSupplied: number;
 };
-
-export interface AddExtraShiftModalProps {
-  onClose: () => void;
-  // أي props إضافية
-}
-
-
 
 const mockSuppliers: Supplier[] = [
   { id: 1, company: "Dina Flour Egyptian Kitchen", contact: "Ahmed Ali", email: "contact@Dinasupplier.com", phone: "+20 12125626", categories: ["Flour", "Salt", "Ketchup", "Milk"], bank: "Cairo", status: "Active", itemsSupplied: 8 },
@@ -193,7 +187,19 @@ export default function SupplierManagement() {
       </div>
 
       {showAdd && <AddSupplierModal onClose={() => setShowAdd(false)} />}
-      {editSupplier && <EditSupplierModal onClose={() => setEditSupplier(null)} />}
+
+      {/* Pass a mapped supplier object that includes `companyName` (service shape) */}
+      {editSupplier && (
+        <EditSupplierModal
+          supplier={
+            ({
+              ...editSupplier,
+              companyName: editSupplier.company,
+            } as unknown) as ServiceSupplier
+          }
+          onClose={() => setEditSupplier(null)}
+        />
+      )}
     </div>
   );
 }

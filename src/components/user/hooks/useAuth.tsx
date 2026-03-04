@@ -42,6 +42,7 @@ export const useAuth = () => {
       throw e;
     }
   };
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
   const extractTokenFromResponse = (res: any): string | undefined => {
     // حاول عدة مسارات محتملة للاستجابة

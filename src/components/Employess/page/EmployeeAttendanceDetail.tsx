@@ -1,5 +1,5 @@
 // src/components/Inventory/page/SupplierManagement.tsx
-import  { useState } from "react";
+import { useState } from "react";
 import AddSupplierModal from "../../Supplier/page/Addsuppliermodal";
 import EditSupplierModal from "../../Supplier/page/Editsuppliermodal";
 
@@ -14,6 +14,7 @@ type Supplier = {
   status: "Active" | "Inactive";
   itemsSupplied: number;
 };
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const mockSuppliers: Supplier[] = [
   { id: 1, company: "Dina Flour Egyptian Kitchen", contact: "Ahmed Ali", email: "contact@Dinasupplier.com", phone: "+20 12125626", categories: ["Flour", "Salt", "Ketchup", "Milk"], bank: "Cairo", status: "Active", itemsSupplied: 8 },
@@ -150,7 +151,9 @@ export default function SupplierManagement() {
                     <span className="text-xs text-slate-400 ml-1">items</span>
                   </td>
                   <td className="py-3.5 px-4 sm:px-5">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      s.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                    }`}>
                       {s.status}
                     </span>
                   </td>
@@ -184,7 +187,27 @@ export default function SupplierManagement() {
       </div>
 
       {showAdd && <AddSupplierModal onClose={() => setShowAdd(false)} />}
-      {editSupplier && <EditSupplierModal onClose={() => setEditSupplier(null)} />}
+
+      {/* IMPORTANT:
+          EditSupplierModal expects a `supplier` object matching the service's shape
+          (which includes `companyName`). We map our local `company` -> `companyName`
+          when rendering the edit modal so TypeScript is happy without changing UI.
+      */}
+      {editSupplier && (
+        <EditSupplierModal
+          supplier={{
+            // map the local Supplier -> the expected shape (minimal mapping)
+            ...editSupplier,
+            // Add companyName because the EditSupplierModal's Props expect it
+            // (some codebases call it `company` locally and the service uses `companyName`)
+            // we don't drop any fields — just add the alias.
+            // this keeps UI identical while satisfying the external prop type.
+            // (TS will accept this as long as EditSupplierModal's Props accept extra fields)
+            companyName: editSupplier.company,
+          } as unknown as any} // we cast to any/unknown to avoid mismatch if EditSupplierModal expects extra fields
+          onClose={() => setEditSupplier(null)}
+        />
+      )}
     </div>
   );
 }
