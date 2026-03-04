@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Bell, Calendar, ChevronDown, RefreshCw, User, Menu, Check, LogOut } from "lucide-react";
 import { useBranches } from "../branches/hook/useBranches"; // عدّل المسار حسب مشروعك
 import { useNavigate } from "react-router-dom";
@@ -31,9 +31,8 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
   const [selectedBranch, setSelectedBranch] = useState<ApiBranch | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading } = useBranches();
+  const { data } = useBranches();
 
-  /* Normalise — API قد يرجع { data: [...] } أو array مباشرة */
   const apiBranches: ApiBranch[] = Array.isArray(data)
     ? (data as ApiBranch[])
     : Array.isArray((data as any)?.data)

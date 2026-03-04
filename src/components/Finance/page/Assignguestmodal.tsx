@@ -1,5 +1,5 @@
 // src/components/Tables/AssignGuestModal.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 
 interface AssignGuestModalProps {
   isOpen:       boolean;

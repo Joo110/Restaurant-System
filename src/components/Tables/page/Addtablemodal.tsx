@@ -1,5 +1,5 @@
 // src/components/Tables/AddTableModal.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 
 interface AddTableModalProps {
   isOpen:   boolean;
