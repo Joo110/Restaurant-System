@@ -1,6 +1,7 @@
 // src/pages/ExecutiveDashboard.tsx
 import { useState } from "react";
 import { DollarSign, ShoppingBag, TrendingUp, Receipt, MapPin } from "lucide-react";
+import { useExecutive } from "../../dashboard/hook/useAccounts";
 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 const Sparkline = ({ color, fill }: { color: string; fill: string }) => (
@@ -38,8 +39,10 @@ const StatCard = ({
     <div className="flex items-center gap-2">
       <span className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</span>
       {badge && (
-        <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-          ↑ {badge}
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+          badge.startsWith("-") ? "text-red-500 bg-red-50" : "text-green-600 bg-green-50"
+        }`}>
+          {badge.startsWith("-") ? "↓" : "↑"} {badge}
         </span>
       )}
     </div>
@@ -48,32 +51,38 @@ const StatCard = ({
 );
 
 // ── Branch Card ───────────────────────────────────────────────────────────────
-const BranchCard = ({ profit, profitSign }: { profit: string; profitSign: "+" | "-" }) => (
+const BranchCard = ({
+  name, location, revenue, profit, change,
+}: {
+  name: string; location: string; revenue: number; profit: number; change: string;
+}) => (
   <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
     <div className="flex items-center gap-3 mb-3">
       <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
         <ShoppingBag size={16} className="text-blue-500" />
       </div>
       <div>
-        <p className="font-bold text-gray-800 text-sm">Downtown Bistro</p>
+        <p className="font-bold text-gray-800 text-sm">{name}</p>
         <p className="text-xs text-gray-400 flex items-center gap-1">
-          <MapPin size={10} /> Downtown, Cairo
+          <MapPin size={10} /> {location}
         </p>
       </div>
     </div>
     <div className="border-t border-gray-50 pt-3 grid grid-cols-3 gap-2">
       <div>
         <p className="text-[10px] text-gray-400">Revenue</p>
-        <p className="text-sm font-bold text-gray-800">$12.4k</p>
+        <p className="text-sm font-bold text-gray-800">${revenue.toLocaleString()}</p>
       </div>
       <div>
-        <p className="text-[10px] text-gray-400">Orders</p>
-        <p className="text-sm font-bold text-gray-800">342</p>
+        <p className="text-[10px] text-gray-400">Change</p>
+        <p className={`text-sm font-bold ${change.startsWith("-") ? "text-red-500" : "text-green-500"}`}>
+          {change}%
+        </p>
       </div>
       <div>
         <p className="text-[10px] text-gray-400">Profit</p>
-        <p className={`text-sm font-bold ${profitSign === "+" ? "text-green-500" : "text-red-500"}`}>
-          {profitSign}{profit}
+        <p className={`text-sm font-bold ${profit >= 0 ? "text-green-500" : "text-red-500"}`}>
+          ${profit.toLocaleString()}
         </p>
       </div>
     </div>
@@ -81,31 +90,35 @@ const BranchCard = ({ profit, profitSign }: { profit: string; profitSign: "+" | 
 );
 
 // ── Revenue by Branch ─────────────────────────────────────────────────────────
-const RevenueByBranch = () => {
-  const branches = [
-    { name: "Downtown Bistro", amount: "$12.4k", pct: 100, color: "bg-blue-500" },
-    { name: "Mansoura Gam3a",  amount: "$10.5k", pct: 85,  color: "bg-blue-500" },
-    { name: "Talkha",          amount: "$8.1k",  pct: 65,  color: "bg-blue-500" },
-    { name: "Mansoura Gehan",  amount: "$6.8k",  pct: 55,  color: "bg-blue-500" },
-    { name: "Dokki",           amount: "$4.2k",  pct: 34,  color: "bg-red-400"  },
-  ];
+const RevenueByBranch = ({ branches }: { branches: { name: string; revenue: number; profit: number }[] }) => {
+  const maxRevenue = Math.max(...branches.map((b) => b.revenue), 1);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm h-full">
       <p className="font-bold text-gray-800 mb-1">Revenue by Branch</p>
-      <p className="text-xs text-gray-400 mb-4">Top 5 Performing Locations</p>
-      <div className="space-y-3">
-        {branches.map((b) => (
-          <div key={b.name}>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-600">{b.name}</span>
-              <span className="text-gray-500 font-medium">{b.amount}</span>
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full">
-              <div className={`h-full ${b.color} rounded-full`} style={{ width: `${b.pct}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
+      <p className="text-xs text-gray-400 mb-4">Top Performing Locations</p>
+      {branches.length === 0 ? (
+        <p className="text-xs text-gray-300 text-center py-8">No data</p>
+      ) : (
+        <div className="space-y-3">
+          {branches.map((b) => {
+            const pct = Math.round((b.revenue / maxRevenue) * 100);
+            return (
+              <div key={b.name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-600">{b.name}</span>
+                  <span className="text-gray-500 font-medium">${b.revenue.toLocaleString()}</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full">
+                  <div
+                    className={`h-full rounded-full ${b.profit >= 0 ? "bg-blue-500" : "bg-red-400"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -113,20 +126,45 @@ const RevenueByBranch = () => {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ExecutiveDashboard() {
   const [period, setPeriod] = useState<"Today" | "This Week" | "This Month">("Today");
+  const [from,   setFrom]   = useState("2026-01-01");
+  const [to,     setTo]     = useState("2026-03-31");
+
+  const { data, isLoading } = useExecutive({ from, to });
+  const e = data?.data;
 
   const stats = [
-    { icon: DollarSign,  label: "Total Revenue", value: "$122,512", badge: "4%", color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill  },
-    { icon: ShoppingBag, label: "Total Orders",  value: "521",      badge: "2%", color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill  },
-    { icon: TrendingUp,  label: "Net Profit",    value: "$5,4020",               color: "text-orange-400", sparkColor: "#fb923c", sparkFill: orangeFill },
-    { icon: Receipt,     label: "Total Expness", value: "$8,150",                color: "text-red-400",    sparkColor: "#f87171", sparkFill: redFill    },
+    {
+      icon: DollarSign,  label: "Total Revenue",
+      value: `$${(e?.summary.totalRevenue.value ?? 0).toLocaleString()}`,
+      badge: e?.summary.totalRevenue.change,
+      color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill,
+    },
+    {
+      icon: ShoppingBag, label: "Total Orders",
+      value: String(e?.summary.totalOrders.value ?? 0),
+      badge: e?.summary.totalOrders.change,
+      color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill,
+    },
+    {
+      icon: TrendingUp,  label: "Net Profit",
+      value: `$${(e?.summary.netProfit ?? 0).toLocaleString()}`,
+      color: (e?.summary.netProfit ?? 0) >= 0 ? "text-orange-400" : "text-red-500",
+      sparkColor: "#fb923c", sparkFill: orangeFill,
+    },
+    {
+      icon: Receipt,     label: "Total Expenses",
+      value: `$${(e?.summary.totalExpenses ?? 0).toLocaleString()}`,
+      color: "text-red-400",    sparkColor: "#f87171", sparkFill: redFill,
+    },
   ];
 
-  const branchCards = [
-    { profit: "$4.2k", profitSign: "+" as const },
-    { profit: "$4.2k", profitSign: "+" as const },
-    { profit: "$0.5k", profitSign: "-" as const },
-    { profit: "$1.2k", profitSign: "+" as const },
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-gray-400 text-sm animate-pulse">Loading executive data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -134,20 +172,25 @@ export default function ExecutiveDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Overview</h2>
-          <p className="text-sm text-gray-400">Real-time performance across all 12 locations.</p>
+          <p className="text-sm text-gray-400">
+            Real-time performance across all {e?.branchPerformance.length ?? 0} locations.
+          </p>
         </div>
-        <div className="flex bg-white border border-gray-200 rounded-xl p-1 gap-1 w-fit">
-          {(["Today", "This Week", "This Month"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                period === p ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex bg-white border border-gray-200 rounded-xl p-1 gap-1">
+            {(["Today", "This Week", "This Month"] as const).map((p) => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                  period === p ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"
+                }`}
+              >{p}</button>
+            ))}
+          </div>
+          {/* Date range */}
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+            className="text-xs border border-gray-200 rounded-xl px-2 py-2 outline-none" />
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+            className="text-xs border border-gray-200 rounded-xl px-2 py-2 outline-none" />
         </div>
       </div>
 
@@ -159,14 +202,15 @@ export default function ExecutiveDashboard() {
       {/* Branch Performance */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-900">Branch Performance</h3>
-        <button className="text-blue-600 text-sm font-semibold hover:underline">View All</button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {branchCards.map((b, i) => <BranchCard key={i} {...b} />)}
+          {(e?.branchPerformance ?? []).slice(0, 4).map((b) => (
+            <BranchCard key={b.id} {...b} />
+          ))}
         </div>
-        <RevenueByBranch />
+        <RevenueByBranch branches={e?.topPerformingLocations ?? []} />
       </div>
     </div>
   );

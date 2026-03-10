@@ -8,15 +8,28 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { busyHoursData } from "../../../../data/dashboardData";
 
-const BusyHours: React.FC = () => {
+interface BusyHoursProps {
+  busyHours: { hour?: string; a?: number; b?: number; [k: string]: any }[];
+}
+
+const BusyHours: React.FC<BusyHoursProps> = ({ busyHours }) => {
+  // لو الداتا فاضية نعرض رسالة
+  if (!busyHours || busyHours.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">Busy Hours</h2>
+        <p className="text-xs text-gray-300 text-center py-8">No data available</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Busy Hours</h2>
       <ResponsiveContainer width="100%" height={120}>
         <BarChart
-          data={busyHoursData}
+          data={busyHours}
           barCategoryGap="25%"
           margin={{ left: -20, right: 0 }}
         >

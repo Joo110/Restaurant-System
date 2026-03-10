@@ -26,12 +26,12 @@ const statusStyle: Record<string, string> = {
   late:      "bg-orange-100 text-orange-600",
   "half-day":"bg-yellow-100 text-yellow-700",
 };
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 function resolveId(rec: Attendance) {
   return rec._id ?? rec.id ?? "";
 }
 
-/** ✅ استخراج employee id الصح من الـ record */
 function resolveEmployeeId(rec: Attendance): string {
   return (
     (rec as any).employee?._id ??

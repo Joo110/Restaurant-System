@@ -8,6 +8,7 @@ type Props = {
   record: Attendance;
   onClose: () => void;
 };
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 type FormFields = {
   checkIn: string;

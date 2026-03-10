@@ -1,27 +1,93 @@
 // src/components/Tables/AddTableModal.tsx
 import { useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import type { ApiBranch } from "../../layout/Topbar";
 
 interface AddTableModalProps {
-  isOpen:   boolean;
-  onClose:  () => void;
-  onAdd:    (table: { tableNumber: string; seats: number; area: string }) => void;
+  isOpen:    boolean;
+  onClose:   () => void;
+  onAdd:     (table: { tableNumber: string; seats: number; area: string; branchId?: string }) => Promise<void> | void;
+  branchId?: string; // optional override
 }
 
-const AREAS = ["Indoor Hall", "Outdoor", "VIP", "Terrace", "Bar"];
+const AREAS = ["indoor", "outdoor"];
 
-export default function AddTableModal({ isOpen, onClose, onAdd }: AddTableModalProps) {
+type FormErrors = {
+  tableNumber?: string;
+  seats?:       string;
+  area?:        string;
+  general?:     string;
+};
+
+export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branchIdProp }: AddTableModalProps) {
+  // ── Branch resolution (نفس نفس pattern الـ AddEmployeeModal) ──
+  const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
+  const activeBranch = outlet?.activeBranch ?? null;
+  const effectiveBranchId =
+    branchIdProp ??
+    activeBranch?.id ??
+    activeBranch?._id ??
+    (activeBranch?.branchId != null ? String(activeBranch.branchId) : undefined);
+
   const [tableNumber, setTableNumber] = useState("");
   const [seats,       setSeats]       = useState("");
-  const [area,        setArea]        = useState("Indoor Hall");
+  const [area,        setArea]        = useState("indoor");
+  const [errors,      setErrors]      = useState<FormErrors>({});
+  const [isLoading,   setIsLoading]   = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = () => {
-    if (!tableNumber.trim() || !seats.trim()) return;
-    onAdd({ tableNumber: tableNumber.trim(), seats: parseInt(seats), area });
-    setTableNumber(""); setSeats(""); setArea("Indoor Hall");
-    onClose();
+  // ── Validation ──
+  const validate = (): FormErrors => {
+    const e: FormErrors = {};
+    if (!tableNumber.trim())
+      e.tableNumber = "Table number is required.";
+    else if (tableNumber.trim().length < 2)
+      e.tableNumber = "Table number must be at least 2 characters.";
+
+    if (!seats.trim())
+      e.seats = "Number of seats is required.";
+    else if (isNaN(Number(seats)) || Number(seats) <= 0)
+      e.seats = "Seats must be a positive number.";
+    else if (Number(seats) > 50)
+      e.seats = "Seats cannot exceed 50.";
+
+    if (!effectiveBranchId)
+      e.general = "Please select a branch before adding a table.";
+
+    return e;
   };
+
+  const handleSubmit = async () => {
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setIsLoading(true);
+    try {
+      await onAdd({
+        tableNumber: tableNumber.trim().toUpperCase(),
+        seats:       parseInt(seats),
+        area,
+        branchId:    effectiveBranchId,
+      });
+      // reset
+      setTableNumber(""); setSeats(""); setArea("indoor"); setErrors({});
+      onClose();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err?.message ?? "Failed to create table.";
+      setErrors((prev) => ({ ...prev, general: msg }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const inputCls = (hasError?: string) =>
+    `w-full px-4 py-3 rounded-xl border text-slate-700 text-sm focus:outline-none focus:ring-2 transition-all ${
+      hasError
+        ? "border-red-300 bg-red-50/50 focus:ring-red-200"
+        : "border-slate-200 bg-white focus:ring-blue-500"
+    }`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -33,27 +99,71 @@ export default function AddTableModal({ isOpen, onClose, onAdd }: AddTableModalP
 
         <div className="h-px bg-slate-200 mb-6" />
 
+        {/* General Error */}
+        {errors.general && (
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+            <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shrink-0 mt-0.5">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                <path d="M2 2l8 8M10 2L2 10" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="text-sm text-red-600">{errors.general}</p>
+          </div>
+        )}
+
+        {/* Branch info */}
+        {effectiveBranchId && (
+          <div className="flex items-center gap-2 bg-blue-100 border border-blue-200 rounded-xl px-3 py-2 mb-4">
+            <span className="text-blue-600 text-xs">📍</span>
+            <p className="text-xs text-blue-700 font-medium">
+              Branch: {activeBranch?.name ?? effectiveBranchId}
+            </p>
+          </div>
+        )}
+
         {/* Table Number + Seats */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Table Number</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Table Number <span className="text-red-400">*</span>
+            </label>
             <input
               type="text"
-              placeholder="Add table Number"
+              placeholder="e.g. T01"
               value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400"
+              onChange={(e) => {
+                setTableNumber(e.target.value);
+                if (errors.tableNumber) setErrors((p) => ({ ...p, tableNumber: undefined }));
+              }}
+              className={inputCls(errors.tableNumber)}
             />
+            {errors.tableNumber && (
+              <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                <span>⚠</span> {errors.tableNumber}
+              </p>
+            )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Seats</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Seats <span className="text-red-400">*</span>
+            </label>
             <input
               type="number"
-              placeholder="Add number of seats"
+              placeholder="e.g. 4"
               value={seats}
-              onChange={(e) => setSeats(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400"
+              min={1}
+              max={50}
+              onChange={(e) => {
+                setSeats(e.target.value);
+                if (errors.seats) setErrors((p) => ({ ...p, seats: undefined }));
+              }}
+              className={inputCls(errors.seats)}
             />
+            {errors.seats && (
+              <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                <span>⚠</span> {errors.seats}
+              </p>
+            )}
           </div>
         </div>
 
@@ -64,9 +174,9 @@ export default function AddTableModal({ isOpen, onClose, onAdd }: AddTableModalP
             <select
               value={area}
               onChange={(e) => setArea(e.target.value)}
-              className="w-full appearance-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+              className="w-full appearance-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 capitalize"
             >
-              {AREAS.map((a) => <option key={a}>{a}</option>)}
+              {AREAS.map((a) => <option key={a} value={a} className="capitalize">{a}</option>)}
             </select>
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">▾</span>
           </div>
@@ -75,17 +185,24 @@ export default function AddTableModal({ isOpen, onClose, onAdd }: AddTableModalP
         {/* Actions */}
         <div className="flex justify-end gap-3">
           <button
-            onClick={onClose}
-            className="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors"
+            onClick={() => { onClose(); setErrors({}); }}
+            disabled={isLoading}
+            className="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!tableNumber || !seats}
-            className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+            disabled={isLoading}
+            className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            Create Table
+            {isLoading && (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            )}
+            {isLoading ? "Creating..." : "Create Table"}
           </button>
         </div>
       </div>

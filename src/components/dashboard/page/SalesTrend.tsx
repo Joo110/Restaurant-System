@@ -10,14 +10,27 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { salesTrendData } from "../../../../data/dashboardData";
 
-const SalesTrend: React.FC = () => {
+interface SalesTrendProps {
+  totalSales?: number;
+}
+
+
+const SalesTrend: React.FC<SalesTrendProps> = ({ totalSales }) => {
   const [period, setPeriod] = useState("Weekly");
+
+  const placeholderData = [
+    { day: "Mon", sales: 0 },
+    { day: "Tue", sales: 0 },
+    { day: "Wed", sales: 0 },
+    { day: "Thu", sales: 0 },
+    { day: "Fri", sales: 0 },
+    { day: "Sat", sales: totalSales ?? 0 },
+    { day: "Sun", sales: 0 },
+  ];
 
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
-      {/* Header — stacks on mobile */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-5">
         <div>
           <p className="text-sm font-semibold text-gray-700 mb-2">Sales Trend</p>
@@ -26,10 +39,7 @@ const SalesTrend: React.FC = () => {
               <TrendingUp size={12} className="text-white" />
             </span>
             <span className="text-lg sm:text-xl font-bold text-gray-800">
-              $123,366.35
-            </span>
-            <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
-              +1.9% vs last week
+              ${totalSales?.toLocaleString() ?? "0"}
             </span>
           </div>
         </div>
@@ -51,35 +61,16 @@ const SalesTrend: React.FC = () => {
         </div>
       </div>
 
-      {/* Chart */}
       <ResponsiveContainer width="100%" height={180}>
         <LineChart
-          data={salesTrendData}
+          data={placeholderData}
           margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
         >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="#F3F4F6"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="day"
-            tick={{ fontSize: 10, fill: "#9CA3AF" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: "#9CA3AF" }}
-            axisLine={false}
-            tickLine={false}
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+          <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
           <Tooltip
-            contentStyle={{
-              borderRadius: "10px",
-              border: "1px solid #E5E7EB",
-              fontSize: "12px",
-              boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
-            }}
+            contentStyle={{ borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "12px" }}
           />
           <Line
             type="monotone"
