@@ -144,7 +144,7 @@ export default function FinanceOverview() {
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        {statCards.map((card, i) => (
+        {statCards.map((card) => (
           <div key={card.label} className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-4 shadow-sm">
             <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">{card.label}</p>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -251,17 +251,19 @@ export default function FinanceOverview() {
                     innerRadius={45} outerRadius={70}
                     dataKey="value" startAngle={90} endAngle={-270}
                   >
-                    {orderTypeData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    {orderTypeData.map((entry, idx) => (
+                      <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                    ))}
                   </Pie>
                   <Tooltip formatter={(v: any) => `$${Number(v).toLocaleString()}`} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="w-full space-y-2 mt-2">
-                {orderTypeData.map((item, i) => (
+                {orderTypeData.map((item, idx) => (
                   <div key={item.name} className="flex items-center justify-between text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0"
-                        style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                        style={{ background: PIE_COLORS[idx % PIE_COLORS.length] }} />
                       <span className="text-slate-600 capitalize">{item.name}</span>
                     </div>
                     <span className="font-semibold text-slate-900">${item.amount.toLocaleString()}</span>
