@@ -1,6 +1,14 @@
 // src/components/Dispatch/page/OrderDetailsPage.tsx
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import {
+  useDispatches,
+  markDispatchFailedFn,
+  updateDispatchStatusFn,
+} from "../hooks/useDispatches";
+import { invalidateQuery } from "../../../hook/queryClient";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 type ModalType = "settlement" | "failed" | "edit" | null;
 
@@ -14,11 +22,22 @@ const failureReasons = [
   "Other",
 ];
 
+// Map UI reason → API failureReason
+const reasonToApi: Record<string, string> = {
+  "Customer unavailable":      "customer-unavailable",
+  "Wrong address":             "wrong-address",
+  "Customer refused delivery": "customer-refused",
+  "Item damaged":              "item-damaged",
+  "Weather conditions":        "weather-conditions",
+  "Vehicle breakdown":         "vehicle-breakdown",
+  "Other":                     "other",
+};
+
 const timelineSteps = [
-  { status: "Out For Delivery",  time: "11:35 AM", detail: "Rider is on the way",       icon: "🛵" },
-  { status: "Kitchen Picked Up", time: "11:20 AM", detail: "Sarah L. collected order",  icon: "🏪" },
-  { status: "Order Prepared",    time: "11:15 AM", detail: "Kitchen finished cooking",  icon: "👨‍🍳" },
-  { status: "Order Confirmed",   time: "11:05 AM", detail: "Payment verified",          icon: "✅" },
+  { status: "Out For Delivery",  time: "11:35 AM", detail: "Rider is on the way",      icon: "🛵" },
+  { status: "Kitchen Picked Up", time: "11:20 AM", detail: "Rider collected order",    icon: "🏪" },
+  { status: "Order Prepared",    time: "11:15 AM", detail: "Kitchen finished cooking", icon: "👨‍🍳" },
+  { status: "Order Confirmed",   time: "11:05 AM", detail: "Payment verified",         icon: "✅" },
 ];
 
 const orderItems = [
@@ -27,13 +46,59 @@ const orderItems = [
   { name: "Truffle Fries", size: "Large Size", qty: 1, price: 8.5 },
 ];
 
-/* ─── Settlement Modal ──────────────────────────────────────────── */
-function SettlementModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+// ─── Settlement Modal ─────────────────────────────────────────────────────────
+
+function SettlementModal({
+  orderId,
+  dispatchId,
+  onClose,
+}: {
+  orderId: string;
+  dispatchId: string;
+  onClose: () => void;
+}) {
   const [collected, setCollected] = useState("60");
   const [tip, setTip]             = useState("0");
   const [fullPaid, setFullPaid]   = useState(false);
-  const totalValue                = 60;
-  const remaining                 = Math.max(0, totalValue - parseFloat(collected || "0"));
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [collectedErr, setCollectedErr] = useState("");
+  const totalValue = 60;
+
+  const remaining = Math.max(0, totalValue - parseFloat(collected || "0"));
+
+  const validate = () => {
+    if (!collected || isNaN(Number(collected))) {
+      setCollectedErr("Enter a valid collected amount"); return false;
+    }
+    if (Number(collected) < 0) {
+      setCollectedErr("Amount cannot be negative"); return false;
+    }
+    setCollectedErr(""); return true;
+  };
+
+  const handleConfirm = async () => {
+    if (!validate()) return;
+    setLoading(true); setError(null);
+    try {
+      // State machine: out-for-delivery → delivered
+      // Requires: status, deliveredAt, cashCollected
+      await updateDispatchStatusFn(dispatchId, {
+        status:        "delivered",
+        deliveredAt:   new Date().toISOString(),
+        cashCollected: parseFloat(collected || "0"),
+        ...(parseFloat(tip || "0") > 0
+          ? { notes: `Driver tip: $${tip}` }
+          : {}),
+      });
+      invalidateQuery("dispatches");
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? "Failed to confirm settlement.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -41,6 +106,10 @@ function SettlementModal({ orderId, onClose }: { orderId: string; onClose: () =>
         <h2 className="text-2xl font-bold text-gray-900">Order #{orderId} Delivered</h2>
         <p className="text-sm text-gray-500 mt-1">Complete Settlement details</p>
         <div className="border-t border-gray-200 my-5" />
+
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{error}</div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
@@ -56,13 +125,22 @@ function SettlementModal({ orderId, onClose }: { orderId: string; onClose: () =>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Collected Amount</label>
-            <input type="number" value={collected} onChange={e => setCollected(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <input
+              type="number"
+              value={collected}
+              onChange={e => { setCollected(e.target.value); setCollectedErr(""); }}
+              className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm ${collectedErr ? "border-red-400" : "border-gray-200"}`}
+            />
+            {collectedErr && <p className="text-xs text-red-500 mt-1">{collectedErr}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Driver Tip (Optional)</label>
-            <input type="number" value={tip} onChange={e => setTip(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <input
+              type="number"
+              value={tip}
+              onChange={e => setTip(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            />
           </div>
         </div>
 
@@ -70,10 +148,12 @@ function SettlementModal({ orderId, onClose }: { orderId: string; onClose: () =>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-800">Was Full amount paid?</p>
-              <p className="text-xs text-gray-500 mt-0.5">Toggle if the customer paid the exact amount</p>
+              <p className="text-xs text-gray-500 mt-0.5">Toggle if customer paid exact amount</p>
             </div>
-            <button onClick={() => setFullPaid(!fullPaid)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${fullPaid ? "bg-blue-600" : "bg-gray-300"}`}>
+            <button
+              onClick={() => setFullPaid(!fullPaid)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${fullPaid ? "bg-blue-600" : "bg-gray-300"}`}
+            >
               <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${fullPaid ? "translate-x-6" : ""}`} />
             </button>
           </div>
@@ -87,13 +167,16 @@ function SettlementModal({ orderId, onClose }: { orderId: string; onClose: () =>
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
+          <button onClick={onClose} disabled={loading} className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md">
-            Confirm Settlement
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
+            className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md disabled:opacity-60 flex items-center gap-2"
+          >
+            {loading && <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>}
+            {loading ? "Confirming..." : "Confirm Settlement"}
           </button>
         </div>
       </div>
@@ -101,11 +184,41 @@ function SettlementModal({ orderId, onClose }: { orderId: string; onClose: () =>
   );
 }
 
-/* ─── Delivery Failed Modal ─────────────────────────────────────── */
-function DeliveryFailedModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+// ─── Delivery Failed Modal ────────────────────────────────────────────────────
+
+function DeliveryFailedModal({
+  orderId,
+  dispatchId,
+  onClose,
+}: {
+  orderId: string;
+  dispatchId: string;
+  onClose: () => void;
+}) {
   const [reason, setReason]   = useState("");
   const [notes, setNotes]     = useState("");
   const [dropOpen, setDrop]   = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+  const [reasonErr, setReasonErr] = useState("");
+
+  const handleSubmit = async () => {
+    if (!reason) { setReasonErr("Please select a reason"); return; }
+    setReasonErr(""); setLoading(true); setError(null);
+    try {
+      await markDispatchFailedFn(dispatchId, {
+        status: "failed",
+        failureReason: reasonToApi[reason] ?? "other",
+        failureNotes: notes.trim() || undefined,
+      });
+      invalidateQuery("dispatches");
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? "Failed to mark as failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -123,20 +236,33 @@ function DeliveryFailedModal({ orderId, onClose }: { orderId: string; onClose: (
         </div>
         <div className="border-t border-gray-200 my-5" />
 
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{error}</div>
+        )}
+
+        {/* Reason Dropdown */}
         <div className="mb-5 relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Failure</label>
-          <button onClick={() => setDrop(!dropOpen)}
-            className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm text-left flex items-center justify-between shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${reason ? "border-blue-300 text-gray-800" : "border-gray-200 text-gray-400"}`}>
+          <button
+            onClick={() => setDrop(!dropOpen)}
+            className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm text-left flex items-center justify-between shadow-sm focus:outline-none focus:ring-2 transition ${
+              reasonErr ? "border-red-400 focus:ring-red-400" : reason ? "border-blue-300 focus:ring-blue-500" : "border-gray-200 focus:ring-blue-500"
+            } ${reason ? "text-gray-800" : "text-gray-400"}`}
+          >
             {reason || "Select a reason"}
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${dropOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+          {reasonErr && <p className="text-xs text-red-500 mt-1">{reasonErr}</p>}
           {dropOpen && (
             <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
               {failureReasons.map(r => (
-                <button key={r} onClick={() => { setReason(r); setDrop(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition ${reason === r ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-700"}`}>
+                <button
+                  key={r}
+                  onClick={() => { setReason(r); setDrop(false); setReasonErr(""); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition ${reason === r ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-700"}`}
+                >
                   {r}
                 </button>
               ))}
@@ -144,21 +270,36 @@ function DeliveryFailedModal({ orderId, onClose }: { orderId: string; onClose: (
           )}
         </div>
 
+        {/* Notes */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-          <textarea placeholder="Provide more details about the failed delivery attempt....." value={notes}
-            onChange={e => setNotes(e.target.value)} rows={4}
-            className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-sm" />
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Additional Notes
+            <span className="text-gray-400 font-normal ml-1">(optional)</span>
+          </label>
+          <textarea
+            placeholder="Provide more details about the failed delivery attempt..."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={4}
+            maxLength={500}
+            className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-sm"
+          />
+          <p className="text-xs text-gray-400 text-right mt-1">{notes.length}/500</p>
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
+          <button onClick={onClose} disabled={loading} className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50">
             Back
           </button>
-          <button onClick={onClose} disabled={!reason}
-            className={`px-6 py-2.5 rounded-2xl text-white text-sm font-semibold transition shadow-md ${reason ? "bg-red-500 hover:bg-red-600" : "bg-red-300 cursor-not-allowed"}`}>
-            Mark as Failed
+          <button
+            onClick={handleSubmit}
+            disabled={!reason || loading}
+            className={`px-6 py-2.5 rounded-2xl text-white text-sm font-semibold transition shadow-md flex items-center gap-2 ${
+              reason && !loading ? "bg-red-500 hover:bg-red-600" : "bg-red-300 cursor-not-allowed"
+            }`}
+          >
+            {loading && <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>}
+            {loading ? "Marking..." : "Mark as Failed"}
           </button>
         </div>
       </div>
@@ -166,22 +307,40 @@ function DeliveryFailedModal({ orderId, onClose }: { orderId: string; onClose: (
   );
 }
 
-/* ─── Edit Order Modal ──────────────────────────────────────────── */
+// ─── Edit Order Modal ─────────────────────────────────────────────────────────
+
 function EditOrderModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
-  const [phone, setPhone]     = useState("+(20) 0123456");
-  const [address, setAddress] = useState("123 Gomhoria Street, Mansoura");
-  const [notes, setNotes]     = useState("");
-  const [items, setItems]     = useState(orderItems.map(i => ({ ...i, note: "" })));
+  const [phone,    setPhone]    = useState("+(20) 0123456");
+  const [address,  setAddress]  = useState("123 Gomhoria Street, Mansoura");
+  const [notes,    setNotes]    = useState("");
+  const [phoneErr, setPhoneErr] = useState("");
+  const [addrErr,  setAddrErr]  = useState("");
+  const [items, setItems]       = useState(orderItems.map(i => ({ ...i, note: "" })));
 
   const subtotal    = items.reduce((s, i) => s + i.price * i.qty, 0);
   const tax         = 3.5;
   const deliveryFee = 21.5;
   const total       = subtotal + tax + deliveryFee;
 
-  const updateQty  = (idx: number, d: number) =>
-    setItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, it.qty + d) } : it));
+  const updateQty = (idx: number, d: number) =>
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, qty: Math.max(1, it.qty + d) } : it));
   const updateNote = (idx: number, note: string) =>
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, note } : it));
+
+  const handleSave = () => {
+    let valid = true;
+    if (!phone.trim()) { setPhoneErr("Phone is required"); valid = false; }
+    else if (!/^[0-9+\-\s()]{7,15}$/.test(phone.trim())) { setPhoneErr("Invalid phone"); valid = false; }
+    else setPhoneErr("");
+
+    if (!address.trim()) { setAddrErr("Address is required"); valid = false; }
+    else if (address.trim().length < 5) { setAddrErr("Address is too short"); valid = false; }
+    else setAddrErr("");
+
+    if (!valid) return;
+    // PATCH call here when API ready
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -193,40 +352,57 @@ function EditOrderModal({ orderId, onClose }: { orderId: string; onClose: () => 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Customer Number</label>
-            <input type="text" value={phone} onChange={e => setPhone(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <input
+              value={phone}
+              onChange={e => { setPhone(e.target.value); setPhoneErr(""); }}
+              className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm ${phoneErr ? "border-red-400" : "border-gray-200"}`}
+            />
+            {phoneErr && <p className="text-xs text-red-500 mt-1">{phoneErr}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Address</label>
-            <input type="text" value={address} onChange={e => setAddress(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <input
+              value={address}
+              onChange={e => { setAddress(e.target.value); setAddrErr(""); }}
+              className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm ${addrErr ? "border-red-400" : "border-gray-200"}`}
+            />
+            {addrErr && <p className="text-xs text-red-500 mt-1">{addrErr}</p>}
           </div>
         </div>
 
         <div className="mb-5">
           <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-          <textarea placeholder="e.g. No onions please" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-            className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-sm" />
+          <textarea
+            placeholder="e.g. No onions please"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={2}
+            maxLength={300}
+            className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-sm"
+          />
         </div>
 
         <div className="space-y-3 mb-5">
           {items.map((item, idx) => (
             <div key={idx} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3">
                 <div className="flex flex-col items-center gap-0.5">
-                  <button onClick={() => updateQty(idx, 1)}
-                    className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition text-xs font-bold">+</button>
+                  <button onClick={() => updateQty(idx, 1)} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold transition">+</button>
                   <span className="text-sm font-bold text-gray-800">{item.qty}</span>
-                  <button onClick={() => updateQty(idx, -1)}
-                    className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition text-xs font-bold">−</button>
+                  <button onClick={() => updateQty(idx, -1)} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold transition">−</button>
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-gray-800">{item.name}</span>
                     <span className="text-sm font-bold text-gray-800">${item.price.toFixed(2)}</span>
                   </div>
-                  <input type="text" placeholder="Add note...." value={item.note} onChange={e => updateNote(idx, e.target.value)}
-                    className="w-full mt-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                  <input
+                    type="text"
+                    placeholder="Add note...."
+                    value={item.note}
+                    onChange={e => updateNote(idx, e.target.value)}
+                    className="w-full mt-1.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
                 </div>
               </div>
             </div>
@@ -234,9 +410,9 @@ function EditOrderModal({ orderId, onClose }: { orderId: string; onClose: () => 
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-6 space-y-2">
-          {[["Subtotal", subtotal], ["Tax", tax], ["Delivery Fee", deliveryFee]].map(([l, v]) => (
-            <div key={String(l)} className="flex justify-between text-sm text-gray-600">
-              <span>{l}</span><span className="font-semibold">${Number(v).toFixed(2)}</span>
+          {([["Subtotal", subtotal], ["Tax", tax], ["Delivery Fee", deliveryFee]] as [string, number][]).map(([l, v]) => (
+            <div key={l} className="flex justify-between text-sm text-gray-600">
+              <span>{l}</span><span className="font-semibold">${v.toFixed(2)}</span>
             </div>
           ))}
           <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-100">
@@ -245,34 +421,49 @@ function EditOrderModal({ orderId, onClose }: { orderId: string; onClose: () => 
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
-            Cancel
-          </button>
-          <button onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md">
-            Save Changes
-          </button>
+          <button onClick={onClose} className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={handleSave} className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md">Save Changes</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── Main Page ─────────────────────────────────────────────────── */
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function OrderDetailsPage() {
   const navigate          = useNavigate();
   const { id }            = useParams<{ id: string }>();
-  const orderId           = id ?? "2025";
+  const dispatchId        = id ?? "";
   const [modal, setModal] = useState<ModalType>(null);
+
+  // Fetch single dispatch from the list (no dedicated single-fetch hook needed
+  // since getDispatchById is available via getDispatchByIdFn if you need a dedicated hook)
+  const { data } = useDispatches({ limit: 1 });
+  const dispatch = (data?.data ?? []).find(d => (d.id ?? d._id) === dispatchId) ?? null;
+  const orderId  = (dispatch as any)?.orderId ?? dispatchId.slice(-6);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
 
       {/* Modals */}
-      {modal === "settlement" && <SettlementModal    orderId={orderId} onClose={() => setModal(null)} />}
-      {modal === "failed"     && <DeliveryFailedModal orderId={orderId} onClose={() => setModal(null)} />}
-      {modal === "edit"       && <EditOrderModal      orderId={orderId} onClose={() => setModal(null)} />}
+      {modal === "settlement" && (
+        <SettlementModal
+          orderId={orderId}
+          dispatchId={dispatchId}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal === "failed" && (
+        <DeliveryFailedModal
+          orderId={orderId}
+          dispatchId={dispatchId}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal === "edit" && (
+        <EditOrderModal orderId={orderId} onClose={() => setModal(null)} />
+      )}
 
       {/* Breadcrumb */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
@@ -296,19 +487,32 @@ export default function OrderDetailsPage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-bold text-gray-900">#ORD-{orderId}</h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">• Out For Delivery</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                  • {dispatch?.status
+                    ? dispatch.status.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+                    : "Out For Delivery"}
+                </span>
               </div>
-              <p className="text-xs text-gray-500">Placed on Oct 24, 2023 at 11:05 AM</p>
+              <p className="text-xs text-gray-500">
+                Placed on{" "}
+                {dispatch?.assignedAt
+                  ? new Date(dispatch.assignedAt).toLocaleString()
+                  : "Oct 24, 2023 at 11:05 AM"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setModal("edit")}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
+            <button
+              onClick={() => setModal("edit")}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition"
+            >
               ✏️ Edit Order
             </button>
             <div className="text-right">
               <p className="text-xs text-gray-500">Total Amount</p>
-              <p className="text-2xl font-bold text-gray-900">$60.00</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ${(dispatch as any)?.amount ?? "60.00"}
+              </p>
             </div>
           </div>
         </div>
@@ -323,12 +527,14 @@ export default function OrderDetailsPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <p className="text-base font-bold text-gray-900">Mohamed Morsy</p>
+                <p className="text-base font-bold text-gray-900">
+                  {(dispatch as any)?.customer?.name ?? "Mohamed Morsy"}
+                </p>
                 <p className="text-xs text-gray-500">Frequent Customer (12 orders)</p>
               </div>
               {[
-                { icon: "📞", label: "CONTACT NUMBER",   value: "+(20) 0123456" },
-                { icon: "📍", label: "DELIVERY ADDRESS", value: "123 Gomhoria Street, Mansoura, Ahmed Maher" },
+                { icon: "📞", label: "CONTACT NUMBER",   value: (dispatch as any)?.customer?.phone ?? "+(20) 0123456" },
+                { icon: "📍", label: "DELIVERY ADDRESS", value: (dispatch as any)?.deliveryAddress ?? "123 Gomhoria Street, Mansoura" },
               ].map(row => (
                 <div key={row.label} className="flex items-start gap-3">
                   <span className="text-base flex-shrink-0 mt-0.5">{row.icon}</span>
@@ -343,8 +549,8 @@ export default function OrderDetailsPage() {
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">PAYMENT METHOD</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm text-gray-800">Card •••• 1234</p>
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-md font-semibold">PAID</span>
+                    <p className="text-sm text-gray-800">Cash on Delivery</p>
+                    <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-md font-semibold">PENDING</span>
                   </div>
                 </div>
               </div>
@@ -376,7 +582,9 @@ export default function OrderDetailsPage() {
             </div>
             <div className="bg-blue-50 rounded-xl p-3 mb-4 border border-blue-100">
               <p className="text-xs font-bold text-blue-700 mb-1">KITCHEN NOTES</p>
-              <p className="text-xs text-blue-700 italic">"No onions on the burgers please. Customer has mild allergy."</p>
+              <p className="text-xs text-blue-700 italic">
+                {(dispatch as any)?.notes ?? '"No onions on the burgers please."'}
+              </p>
             </div>
             <div className="space-y-1.5 pt-3 border-t border-gray-100">
               {[["Subtotal","$25.50"],["Tax (10%)","$3.50"],["Delivery Fee","$21.50"]].map(([l, v]) => (
@@ -385,7 +593,8 @@ export default function OrderDetailsPage() {
                 </div>
               ))}
               <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-100">
-                <span>Total</span><span className="text-blue-600">$60.00</span>
+                <span>Total</span>
+                <span className="text-blue-600">${(dispatch as any)?.amount ?? "60.00"}</span>
               </div>
             </div>
           </div>
@@ -397,7 +606,9 @@ export default function OrderDetailsPage() {
             </div>
             <div className="bg-gray-50 rounded-xl p-3 flex items-center justify-between mb-5 border border-gray-100">
               <div>
-                <p className="font-bold text-gray-900">Sarah L.</p>
+                <p className="font-bold text-gray-900">
+                  {(dispatch as any)?.driverName ?? "Assigned Driver"}
+                </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="text-yellow-400 text-sm">★</span>
                   <span className="text-xs text-gray-600 font-semibold">4.9</span>
@@ -407,22 +618,43 @@ export default function OrderDetailsPage() {
               <button className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition text-lg">📞</button>
             </div>
 
+            {/* Real timeline from dispatch data */}
             <div className="relative space-y-3 mb-5">
-              {timelineSteps.map((step, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm flex-shrink-0">{step.icon}</div>
-                    {i < timelineSteps.length - 1 && <div className="w-0.5 h-5 bg-blue-200 mt-1" />}
+              {((dispatch?.timeline ?? []).length > 0
+                ? [...(dispatch?.timeline ?? [])].reverse()
+                : timelineSteps.map(s => ({ status: s.status, timestamp: s.time, note: s.detail, icon: s.icon }))
+              ).map((step: any, i: number, arr: any[]) => {
+                const statusIcon: Record<string, string> = {
+                  assigned:           "📋",
+                  "picked-up":        "🏪",
+                  "out-for-delivery": "🛵",
+                  delivered:          "✅",
+                  failed:             "❌",
+                };
+                const icon = statusIcon[step.status] ?? "⏱";
+                const time = step.timestamp
+                  ? new Date(step.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : step.time ?? "";
+                return (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm flex-shrink-0">
+                        {icon}
+                      </div>
+                      {i < arr.length - 1 && <div className="w-0.5 h-5 bg-blue-200 mt-1" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-blue-600 capitalize">
+                        {(step.status ?? "").replace(/-/g, " ")}
+                      </p>
+                      <p className="text-xs text-gray-500">{time} • {step.note ?? step.detail ?? ""}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-blue-600">{step.status}</p>
-                    <p className="text-xs text-gray-500">{step.time} • {step.detail}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* ── Action Buttons ── */}
+            {/* Action Buttons — state machine aware */}
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-700 font-semibold hover:bg-gray-50 transition">
@@ -433,22 +665,46 @@ export default function OrderDetailsPage() {
                 </button>
               </div>
 
-              {/* ✅ Confirm Settlement */}
-              <button onClick={() => setModal("settlement")}
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 transition shadow-sm">
-                ✅ Confirm Settlement
-              </button>
+              {/* Only show Confirm Settlement when out-for-delivery */}
+              {dispatch?.status === "out-for-delivery" && (
+                <button
+                  onClick={() => setModal("settlement")}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+                >
+                  ✅ Confirm Settlement
+                </button>
+              )}
 
-              {/* ❌ Mark as Failed */}
-              <button onClick={() => setModal("failed")}
-                className="w-full flex items-center justify-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-red-100 transition">
-                ❌ Mark as Failed
-              </button>
+              {/* Only show Mark as Failed when out-for-delivery */}
+              {dispatch?.status === "out-for-delivery" && (
+                <button
+                  onClick={() => setModal("failed")}
+                  className="w-full flex items-center justify-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-red-100 transition"
+                >
+                  ❌ Mark as Failed
+                </button>
+              )}
 
-              {/* Cancel Order → back to dispatch */}
-              <button onClick={() => navigate("/dashboard/dispatch")}
-                className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-500 rounded-xl py-2 text-xs font-semibold hover:bg-gray-50 transition">
-                Cancel Order
+              {/* Status info when not actionable */}
+              {dispatch?.status && !["out-for-delivery"].includes(dispatch.status) && (
+                <div className={`w-full rounded-xl py-2.5 text-sm font-semibold text-center ${
+                  dispatch.status === "delivered" ? "bg-green-50 text-green-700 border border-green-200" :
+                  dispatch.status === "failed"    ? "bg-red-50 text-red-600 border border-red-200"       :
+                  dispatch.status === "picked-up" ? "bg-purple-50 text-purple-700 border border-purple-200" :
+                  "bg-blue-50 text-blue-700 border border-blue-200"
+                }`}>
+                  {dispatch.status === "assigned"  && "📦 Waiting for pickup — go back to table to advance"}
+                  {dispatch.status === "picked-up" && "🛵 Rider picked up — go back to table to mark out for delivery"}
+                  {dispatch.status === "delivered" && "✅ Delivered — order complete"}
+                  {dispatch.status === "failed"    && "❌ Delivery failed"}
+                </div>
+              )}
+
+              <button
+                onClick={() => navigate("/dashboard/dispatch")}
+                className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-500 rounded-xl py-2 text-xs font-semibold hover:bg-gray-50 transition"
+              >
+                ← Back to Dispatch
               </button>
             </div>
           </div>

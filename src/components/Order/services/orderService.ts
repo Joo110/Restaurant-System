@@ -7,34 +7,49 @@ import api from '../../../lib/axios';
  * Order service — thin axios wrappers for the Orders API
  */
 
-// Basic types exported so hooks/components يقدروا يستخدموهم
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export type OrderItemDTO = {
-  itemId: string;
+  itemId:   string;
   quantity: number;
+  notes?:   string;
   [k: string]: any;
 };
 
+export type CustomerLocation = {
+  address?:     string;
+  coordinates?: number[];   // [lng, lat]
+  type?:        string;     // "Point"
+};
+
 export type Order = {
-  id?: string;
-  _id?: string;
-  orderId?: number;
-  orderType?: string;
+  id?:          string;
+  _id?:         string;
+  orderId?:     number;
+  orderNumber?: string;       // e.g. "ORD-260318-0001"
+  orderType?:   string;       // "dine-in" | "takeaway" | "delivery"
   tableNumber?: string | null;
-  items?: OrderItemDTO[];
+  items?:       OrderItemDTO[];
   paymentMethod?: string;
-  branch?: string;
-  branchId?: string;
-  status?: string;
-  notes?: string;
+  branch?:      string;
+  branchId?:    string;
+  status?:      string;
+  notes?:       string;
+
+  // ── delivery-specific ─────────────────────────────────────────
   customer?: {
-    name?: string;
+    name?:  string;
     phone?: string;
     [k: string]: any;
   };
-  createdBy?: string;
-  updatedBy?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  customerLocation?: CustomerLocation;
+  deliveryAddress?:  string;
+
+  // ── meta ─────────────────────────────────────────────────────
+  createdBy?:  string;
+  updatedBy?:  string;
+  createdAt?:  string;
+  updatedAt?:  string;
   [k: string]: any;
 };
 
@@ -44,45 +59,51 @@ export type OrdersListResponse = {
   results?: number;
   paginationResult?: {
     currentPage?: number;
-    limit?: number;
-    totalDocs?: number;
-    totalPages?: number;
+    limit?:       number;
+    totalDocs?:   number;
+    totalPages?:  number;
   };
   [k: string]: any;
 };
 
 export type OrdersQueryParams = {
-  sort?: string;
-  status?: string;
-  from?: string; // YYYY-MM-DD
-  to?: string;
-  keyword?: string;
-  limit?: number;
-  page?: number;
-  branchId?: string;
+  sort?:      string;
+  status?:    string;   // lifecycle: pending | ready | completed | cancelled
+  orderType?: string;   // ← FIX: "dine-in" | "takeaway" | "delivery"  (was wrongly mapped to status before)
+  from?:      string;   // YYYY-MM-DD
+  to?:        string;
+  keyword?:   string;
+  limit?:     number;
+  page?:      number;
+  branchId?:  string;
   [k: string]: any;
 };
 
 export type CreateOrderDTO = {
-  orderType: 'dine-in' | 'takeaway' | 'delivery' | string;
-  tableNumber?: string | null;
-  items: OrderItemDTO[];
+  orderType:     'dine-in' | 'takeaway' | 'delivery' | string;
+  tableNumber?:  string | null;
+  items:         OrderItemDTO[];
   paymentMethod: string;
-  branchId: string;
-  notes?: string;
+  branchId:      string;
+  notes?:        string;
+
+  // ── delivery fields — REQUIRED for dispatch auto-creation ────
   customer?: {
-    name?: string;
+    name?:  string;
     phone?: string;
     [k: string]: any;
   };
+  customerLocation?: CustomerLocation;
+  deliveryAddress?:  string;
+
   [k: string]: any;
 };
 
 export type UpdateOrderDTO = Partial<{
-  notes: string;
-  tableNumber: string | null;
+  notes:         string;
+  tableNumber:   string | null;
   paymentMethod: string;
-  customer: { name?: string; phone?: string };
+  customer:      { name?: string; phone?: string };
   [k: string]: any;
 }>;
 
@@ -91,7 +112,7 @@ export type UpdateStatusDTO = {
   [k: string]: any;
 };
 
-/* -------------------- API calls -------------------- */
+// ─── API calls ────────────────────────────────────────────────────────────────
 
 /**
  * POST /api/v1/orders
@@ -103,6 +124,7 @@ export const createOrder = async (data: CreateOrderDTO): Promise<any> => {
 
 /**
  * GET /api/v1/orders
+ * Supports orderType param for filtering by delivery/dine-in/takeaway
  */
 export const getOrders = async (params?: OrdersQueryParams): Promise<OrdersListResponse> => {
   const res = await api.get('/orders', { params });

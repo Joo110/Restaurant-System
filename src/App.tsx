@@ -19,7 +19,7 @@ import EditMenuItemModal   from './components/Menu/page/EditMenuItemModal';
 import OrdersManagement    from './components/Order/page/OrdersManagement';
 import EditOrder           from './components/Order/page/EditOrder';
 import CreateOrder         from './components/Order/page/CreateOrder';
-
+import SalesRevenueDashboard from './components/Analytics/page/Salesrevenuedashboard'
 import InventoryPage       from './components/Inventorys/page/InventoryPage';
 import StockDetailPage     from './components/Inventorys/page/StockDetailPage';
 import SupplierManagement  from './components/Supplier/page/Suppliermanagement';
@@ -42,11 +42,21 @@ import FinanceOverview   from './components/Finance/page/FinanceOverview';
 import NotificationsPage from './components/Notifications/page/Notificationspage';
 import TablesPage        from './components/Tables/page/Tablespage';
 
+
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 import DispatchManagement       from './components/DeliveryandDispatch/page/DispatchManagement';
 import RiderShiftSettlement     from './components/DeliveryandDispatch/page/RiderShiftSettlement';
 import OrderDetailsPage         from './components/DeliveryandDispatch/page/OrderDetailsPage';
-import OrdersManagementDelivery from './components/DeliveryandDispatch/page/OrdersManagementDelivery';
+//import OrdersManagementDelivery from './components/DeliveryandDispatch/page/OrdersManagementDelivery';
+
+// ── Receipts & Invoices ───────────────────────────────────────────────────────
+import DeliveryReceipt  from './components/receipt/page/Deliveryreceipt';
+import ReceiptPaperBody from './components/receipt/page/Receiptpaperbody';
+import InvoiceManager   from './components/receipt/page/Invoicemanager';
+
+// ── Tax Settings ──────────────────────────────────────────────────────────────
+import TaxSettings from './components/setting/Page/Taxsettings';
 
 import './App.css';
 
@@ -69,17 +79,12 @@ const MenuPage: React.FC = () => {
         onEditItem={(item: MenuItem) => setEditItem(item)}
       />
 
-      {/* render AddMenuItemModal only when open (project's modal props don't include `isOpen`) */}
       {showAdd && (
         <AddMenuItemModal
           onClose={() => setShowAdd(false)}
-          /* If your AddMenuItemModal supports a callback after add,
-             you can add it here with the proper prop name; omitted to match actual props. */
-          /* Example if it supported onAdded: onAdded={(newItem: MenuItem) => { ... }} */
         />
       )}
 
-      {/* Edit modal: pass `onSaved` (not onSave) and type the parameter */}
       {editItem && (
         <EditMenuItemModal
           isOpen={true}
@@ -124,11 +129,15 @@ export default function App() {
           <Route path="orders/:id/edit" element={<EditOrder />}        />
 
           {/* ── Dispatch ── */}
-          <Route path="dispatch"                 element={<DispatchManagement />}       />
-          <Route path="dispatch/rider-shift"     element={<RiderShiftSettlement />}     />
-          <Route path="dispatch/order/:id"       element={<OrderDetailsPage />}         />
-          <Route path="dispatch/new-order"       element={<OrdersManagementDelivery />} />
+          <Route path="dispatch"             element={<DispatchManagement />}       />
+          <Route path="dispatch/rider-shift" element={<RiderShiftSettlement />}     />
+          <Route path="dispatch/order/:id"   element={<OrderDetailsPage />}         />
+          <Route path="dispatch/new-order"   element={<OrdersManagement />} />
 
+          {/* ── Analytics ── */}
+          <Route path="analytics"   element={<SalesRevenueDashboard />} />
+
+        
           {/* Inventory */}
           <Route path="inventory"     element={<InventoryPage />}   />
           <Route path="inventory/:id" element={<StockDetailPage />} />
@@ -158,6 +167,14 @@ export default function App() {
           <Route path="finance"       element={<FinanceOverview />}   />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="tables"        element={<TablesPage />}        />
+
+          {/* ── Receipts & Invoices ── */}
+          <Route path="receipts/delivery"   element={<DeliveryReceipt />}  />
+          <Route path="receipts/paper-body" element={<ReceiptPaperBody />} />
+          <Route path="receipts/invoice"    element={<InvoiceManager />}   />
+
+          {/* ── Settings ── */}
+          <Route path="settings/tax" element={<TaxSettings />} />
 
         </Route>
 

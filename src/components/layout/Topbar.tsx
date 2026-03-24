@@ -1,66 +1,78 @@
+// src/components/layout/Topbar.tsx
 import { useState, useRef, useEffect } from "react";
 import { Bell, Calendar, ChevronDown, RefreshCw, User, Menu, Check, LogOut } from "lucide-react";
-import { useBranches } from "../branches/hook/useBranches"; // عدّل المسار حسب مشروعك
+import { useBranches } from "../branches/hook/useBranches";
 import { useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
 
 interface TopbarProps {
   onMenuClick?: () => void;
   onLogout?: () => void;
   onBranchChange?: (branch: ApiBranch) => void;
 }
-/* ── Raw branch shape from API (exported as type to match type-only imports) ── */
+
 export type ApiBranch = {
-  id?: string;      // REST style
-  _id?: string;     // Mongo style
-  branchId?: number | string; // numeric id from API
+  id?: string;
+  _id?: string;
+  branchId?: number | string;
   name: string;
 };
 
-/** Extract the string id from whichever field the API returns (robust ordering) */
 export function getBranchId(branch: ApiBranch | undefined): string | undefined {
   if (!branch) return undefined;
-  // Prefer `id` (REST), then `_id` (Mongo), then numeric branchId
-  if (branch.id) return String(branch.id);
+  if (branch.id)  return String(branch.id);
   if (branch._id) return String(branch._id);
   if (branch.branchId != null) return String(branch.branchId);
   return undefined;
 }
 
+// ─── helper: قرا الـ user من الكوكيز ─────────────────────────────────────────
+function getAuthUser(): { role?: string; branchId?: string; name?: string } | null {
+  try {
+    const raw = Cookies.get("authUser");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }) => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen]     = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<ApiBranch | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate    = useNavigate();
 
   const { data } = useBranches();
+
+  // ✅ اقرأ الـ role من الكوكيز — لو manager اخفي الـ branch dropdown
+  const authUser  = getAuthUser();
+  const isManager = authUser?.role === "manager";
 
   const apiBranches: ApiBranch[] = Array.isArray(data)
     ? (data as ApiBranch[])
     : Array.isArray((data as any)?.data)
     ? (data as any).data
     : [];
-const navigate = useNavigate();
+
   const SAMPLE_BRANCHES: ApiBranch[] = [
-    { _id: "1", name: "Downtown Branch" },
-    { _id: "2", name: "Mansoura Branch" },
-    { _id: "3", name: "Cairo Branch" },
-    { _id: "4", name: "Alexandria Branch" },
+    { _id: "1", name: "Downtown Branch"  },
+    { _id: "2", name: "Mansoura Branch"  },
+    { _id: "3", name: "Cairo Branch"     },
+    { _id: "4", name: "Alexandria Branch"},
   ];
 
   const branches: ApiBranch[] = apiBranches.length > 0 ? apiBranches : SAMPLE_BRANCHES;
 
-  /* Auto-select first branch when data loads */
   useEffect(() => {
     if (branches.length > 0 && !selectedBranch) {
       const first = branches[0];
       setSelectedBranch(first);
-      // eslint-disable-next-line no-console
-      console.log("Topbar - auto-selected branch:", first);
       onBranchChange?.(first);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branches]);
 
-  /* Close dropdown on outside click */
   useEffect(() => {
     if (!dropdownOpen) return;
     const handler = (e: MouseEvent) => {
@@ -75,16 +87,13 @@ const navigate = useNavigate();
   const handleSelect = (branch: ApiBranch) => {
     setSelectedBranch(branch);
     setDropdownOpen(false);
-    // eslint-disable-next-line no-console
-    console.log("Topbar - user selected branch:", branch);
     onBranchChange?.(branch);
   };
 
-  /* Today's date */
   const today = new Date().toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric",
-    year: "numeric",
+    day:   "numeric",
+    year:  "numeric",
   });
 
   return (
@@ -92,7 +101,6 @@ const navigate = useNavigate();
 
       {/* ── Left ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        {/* Hamburger */}
         {onMenuClick && (
           <button
             onClick={onMenuClick}
@@ -106,42 +114,57 @@ const navigate = useNavigate();
           Store Overview
         </h1>
 
-        {/* Branch Dropdown — hidden on xs */}
-        <div ref={dropdownRef} className="hidden sm:block relative">
-          {/* Trigger button */}
-          <button
-            onClick={() => setDropdownOpen((o) => !o)}
-            className="flex items-center gap-2 text-sm text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-blue-400 hover:text-blue-600 transition-all bg-white"
-          >
-            <span>🏢</span>
-            <span className="whitespace-nowrap max-w-[140px] truncate">
-              {selectedBranch?.name ?? "Select Branch"}
-            </span>
-            <ChevronDown size={13} className={`transition-transform flex-shrink-0 ${dropdownOpen ? "rotate-180" : ""}`} />
-          </button>
+        {/* ✅ Branch Dropdown — بتظهر بس للـ General Manager */}
+        {!isManager && (
+          <div ref={dropdownRef} className="hidden sm:block relative">
+            <button
+              onClick={() => setDropdownOpen(o => !o)}
+              className="flex items-center gap-2 text-sm text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-blue-400 hover:text-blue-600 transition-all bg-white"
+            >
+              <span>🏢</span>
+              <span className="whitespace-nowrap max-w-[140px] truncate">
+                {selectedBranch?.name ?? "Select Branch"}
+              </span>
+              <ChevronDown
+                size={13}
+                className={`transition-transform flex-shrink-0 ${dropdownOpen ? "rotate-180" : ""}`}
+              />
+            </button>
 
-          {/* Custom dropdown list */}
-          {dropdownOpen && (
-            <div className="absolute left-0 top-full mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-              {branches.map((branch) => {
-                const key = branch._id ?? branch.id ?? branch.name;
-                const isActive = selectedBranch?.name === branch.name;
-                return (
-                  <button
-                    key={key}
-                    onMouseDown={(e) => { e.preventDefault(); handleSelect(branch); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors ${
-                      isActive ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="truncate">{branch.name}</span>
-                    {isActive && <Check size={13} className="shrink-0 text-blue-600" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            {dropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                {branches.map(branch => {
+                  const key      = branch._id ?? branch.id ?? branch.name;
+                  const isActive = selectedBranch?.name === branch.name;
+                  return (
+                    <button
+                      key={key}
+                      onMouseDown={e => { e.preventDefault(); handleSelect(branch); }}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 font-medium"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="truncate">{branch.name}</span>
+                      {isActive && <Check size={13} className="shrink-0 text-blue-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ✅ لو Manager — اعرض اسم البرانش بتاعته بس (read-only) */}
+        {isManager && authUser?.name && (
+          <span className="hidden sm:flex items-center gap-2 text-sm text-gray-500 border border-gray-100 rounded-lg px-3 py-1.5 bg-gray-50">
+            <span>🏢</span>
+            <span className="whitespace-nowrap max-w-[140px] truncate text-gray-600 font-medium">
+              {authUser.name}
+            </span>
+          </span>
+        )}
       </div>
 
       {/* ── Right ── */}
@@ -157,18 +180,23 @@ const navigate = useNavigate();
           <RefreshCw size={15} />
         </button>
 
-    {/* Bell */}
-<div className="relative">
-  <button
-    onClick={() => navigate("/dashboard/notifications")}
-    className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-all bg-white"
-  >
-    <Bell size={15} />
-  </button>
-  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
-</div>
-        {/* User */}
-        <button className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-all bg-white">
+        {/* Bell */}
+        <div className="relative">
+          <button
+            onClick={() => navigate("/dashboard/notifications")}
+            className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-all bg-white"
+          >
+            <Bell size={15} />
+          </button>
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
+        </div>
+
+        {/* User → Profile */}
+        <button
+          onClick={() => navigate("/profile")}
+          className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-all bg-white"
+          title="My Profile"
+        >
           <User size={15} />
         </button>
 

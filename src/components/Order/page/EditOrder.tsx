@@ -14,14 +14,27 @@ type LocalItem = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function EditOrder() {
-  const navigate       = useNavigate();
-  const { id }         = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { id }   = useParams<{ id: string }>();
 
   /* ── state ── */
-  const [items,        setItems]        = useState<LocalItem[]>([]);
-  const [instructions, setInstructions] = useState("");
-  const [tableNumber,  setTableNumber]  = useState("");
-  const [paymentMethod,setPaymentMethod]= useState("cash");
+  const [items,         setItems]         = useState<LocalItem[]>([]);
+  const [instructions,  setInstructions]  = useState("");
+  const [tableNumber,   setTableNumber]   = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [orderMeta,     setOrderMeta]     = useState<{
+    orderNumber?: string;
+    branch?: string;
+    orderType?: string;
+    status?: string;
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+    createdBy?: string;
+    updatedBy?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }>({});
   const [isLoading,    setIsLoading]    = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddItems, setShowAddItems] = useState(false);
@@ -33,17 +46,37 @@ export default function EditOrder() {
     if (!id) return;
     setIsLoading(true);
     getOrderByIdFn(id)
-      .then((order) => {
+      .then((res: any) => {
+        // API returns { message, data: { ... } }
+        const order = res?.data ?? res;
+
+        // Map items — API shape: { id, name, quantity, price, totalPrice }
         const mapped: LocalItem[] = (order.items ?? []).map((i: any) => ({
-          id:        i.itemId ?? i._id ?? i.id ?? "",
-          name:      i.name   ?? i.itemId ?? "Item",
-          qty:       i.quantity ?? 1,
-          unitPrice: i.price ?? 0,
+          id:        i.id        ?? i._id    ?? i.itemId ?? "",
+          name:      i.name      ?? i.itemId ?? "Item",
+          qty:       i.quantity  ?? 1,
+          unitPrice: i.price     ?? 0,
         }));
+
         setItems(mapped);
         setInstructions(order.notes ?? "");
         setTableNumber(order.tableNumber ?? "");
         setPaymentMethod(order.paymentMethod ?? "cash");
+
+        // Store read-only meta for display
+        setOrderMeta({
+          orderNumber: order.orderNumber,
+          branch:      order.branch,
+          orderType:   order.orderType,
+          status:      order.status,
+          subtotal:    order.subtotal,
+          tax:         order.tax,
+          total:       order.total,
+          createdBy:   order.createdBy,
+          updatedBy:   order.updatedBy,
+          createdAt:   order.createdAt,
+          updatedAt:   order.updatedAt,
+        });
       })
       .catch(() => setError("Failed to load order."))
       .finally(() => setIsLoading(false));
@@ -61,8 +94,9 @@ export default function EditOrder() {
   /* ── cart actions ── */
   const updateQty = (itemId: string, delta: number) => {
     setItems((prev) =>
-      prev.map((i) => i.id === itemId ? { ...i, qty: i.qty + delta } : i)
-          .filter((i) => i.qty > 0)
+      prev
+        .map((i) => i.id === itemId ? { ...i, qty: i.qty + delta } : i)
+        .filter((i) => i.qty > 0)
     );
   };
 
@@ -75,9 +109,9 @@ export default function EditOrder() {
     });
   };
 
-  /* ── math ── */
+  /* ── math (recalculated locally from items) ── */
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
-  const tax      = parseFloat((subtotal * 0.15).toFixed(2));
+  const tax      = parseFloat((subtotal * 0.14).toFixed(2));   // 14% — adjust if needed
   const total    = parseFloat((subtotal + tax).toFixed(2));
 
   /* ── submit ── */
@@ -89,7 +123,7 @@ export default function EditOrder() {
         notes:         instructions || undefined,
         tableNumber:   tableNumber  || null,
         paymentMethod,
-        // items update — لو الـ API بتاعك بيقبل items في update حطهم هنا
+        // Uncomment if your API accepts items in update:
         // items: items.map(i => ({ itemId: i.id, quantity: i.qty })),
       });
       invalidateQuery("orders");
@@ -100,6 +134,16 @@ export default function EditOrder() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  /* ── status badge color ── */
+  const statusColors: Record<string, string> = {
+    pending:            "bg-yellow-100 text-yellow-700",
+    "out-for-delivery": "bg-blue-100 text-blue-700",
+    delivered:          "bg-green-100 text-green-700",
+    cancelled:          "bg-red-100 text-red-700",
+    ready:              "bg-purple-100 text-purple-700",
+    completed:          "bg-green-100 text-green-700",
   };
 
   /* ── loading / error states ── */
@@ -145,11 +189,25 @@ export default function EditOrder() {
             >
               ← Back
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Edit Order #{id?.slice(-4)}</h1>
-            <p className="text-slate-400 text-sm mt-1">Modify items and instructions</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+              Edit Order {orderMeta.orderNumber ? `#${orderMeta.orderNumber}` : `#${id?.slice(-4)}`}
+            </h1>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {orderMeta.branch && (
+                <span className="text-xs text-slate-400">📍 {orderMeta.branch}</span>
+              )}
+              {orderMeta.status && (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[orderMeta.status] ?? "bg-slate-100 text-slate-600"}`}>
+                  {orderMeta.status.replace(/-/g, " ")}
+                </span>
+              )}
+              {orderMeta.orderType && (
+                <span className="text-xs text-slate-400 capitalize">· {orderMeta.orderType}</span>
+              )}
+            </div>
           </div>
 
-          {/* Order type meta */}
+          {/* Order meta (right side) */}
           <div className="hidden sm:flex flex-col gap-1.5 items-end">
             {tableNumber && (
               <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl">
@@ -171,6 +229,9 @@ export default function EditOrder() {
               <option value="card">Card</option>
               <option value="online">Online</option>
             </select>
+            {orderMeta.createdBy && (
+              <span className="text-xs text-slate-400">Created by: {orderMeta.createdBy}</span>
+            )}
           </div>
         </div>
 
@@ -187,7 +248,6 @@ export default function EditOrder() {
                 )}
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 sm:gap-4 py-2">
-                    {/* Qty control */}
                     <div className="flex items-center gap-1.5 sm:gap-2 border border-slate-200 rounded-xl px-2 py-1.5 shrink-0">
                       <button
                         onClick={() => updateQty(item.id, -1)}
@@ -200,9 +260,14 @@ export default function EditOrder() {
                       >+</button>
                     </div>
                     <span className="flex-1 text-slate-700 font-medium text-sm sm:text-base truncate">{item.name}</span>
-                    <span className="text-blue-500 font-bold text-sm sm:text-base shrink-0">
-                      ${(item.unitPrice * item.qty).toFixed(2)}
-                    </span>
+                    <div className="text-right shrink-0">
+                      <span className="text-blue-500 font-bold text-sm sm:text-base block">
+                        ${(item.unitPrice * item.qty).toFixed(2)}
+                      </span>
+                      {item.qty > 1 && (
+                        <span className="text-xs text-slate-400">${item.unitPrice} each</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -253,18 +318,42 @@ export default function EditOrder() {
                 className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
+
+            {/* Timestamps (read-only info) */}
+            {(orderMeta.createdAt || orderMeta.updatedAt) && (
+              <div className="mt-4 flex gap-4 flex-wrap">
+                {orderMeta.createdAt && (
+                  <p className="text-xs text-slate-400">
+                    Created: {new Date(orderMeta.createdAt).toLocaleString()}
+                  </p>
+                )}
+                {orderMeta.updatedAt && (
+                  <p className="text-xs text-slate-400">
+                    Updated: {new Date(orderMeta.updatedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ══ RIGHT — Summary ══ */}
           <div className="w-full lg:w-64 bg-slate-900 rounded-2xl p-5 text-white flex flex-col gap-4 h-fit lg:sticky lg:top-6">
             <h2 className="text-lg font-bold">Order Summary</h2>
 
+            {/* Items count */}
+            <p className="text-slate-400 text-xs -mt-2">
+              {items.length} item{items.length !== 1 ? "s" : ""} ·{" "}
+              {items.reduce((s, i) => s + i.qty, 0)} qty total
+            </p>
+
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-slate-400">
-                <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
+                <span>Subtotal</span>
+                <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm text-slate-400">
-                <span>Tax (15%)</span><span>${tax.toFixed(2)}</span>
+                <span>Tax (14%)</span>
+                <span>${tax.toFixed(2)}</span>
               </div>
             </div>
 
@@ -278,7 +367,23 @@ export default function EditOrder() {
               </div>
             </div>
 
-            <div className="mt-auto flex flex-col gap-2 pt-4">
+            {/* Original totals from API (read-only reference) */}
+            {(orderMeta.total != null) && (
+              <div className="bg-slate-800 rounded-xl p-3 space-y-1">
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Original</p>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Subtotal</span><span>${orderMeta.subtotal?.toFixed(2) ?? "—"}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Tax</span><span>${orderMeta.tax?.toFixed(2) ?? "—"}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-300 font-semibold">
+                  <span>Total</span><span>${orderMeta.total?.toFixed(2) ?? "—"}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-auto flex flex-col gap-2 pt-2">
               <button
                 onClick={() => navigate("/dashboard/orders")}
                 className="w-full py-3 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors"

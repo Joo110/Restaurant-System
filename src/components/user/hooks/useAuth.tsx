@@ -4,28 +4,17 @@ import Cookies from 'js-cookie';
 import * as authService from '../services/authService';
 import type { SignUpPayload, LoginPayload } from '../types/auth';
 
-/**
- * useAuth hook (lightweight, no provider)
- * - يقوم بتشغيل authService (افتراضياً يقوم هو بالاتصال بالـ API)
- * - يخزن التوكن في كوكيز بعد نجاح تسجيل الدخول
- * - يزيل التوكن عند تسجيل الخروج
- *
- * ملاحظة: تأكد أن استجابة authService.logIn تُعيد توكن في أحد الحقول:
- * - res.data.token
- * - res.data.accessToken
- * - res.token
- * - res.accessToken
- */
 export const useAuth = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
   const COOKIE_NAME = 'token';
+  const USER_COOKIE = 'authUser';
+
   const COOKIE_OPTIONS: Cookies.CookieAttributes = {
-    expires: 7, // أيام
+    expires: 7,
     path: '/',
     sameSite: 'lax',
-    // secure: true عند الانتاج (ننشئه ديناميكياً عند الحاجة)
   };
 
   const signUp = async (payload: SignUpPayload) => {
@@ -42,12 +31,10 @@ export const useAuth = () => {
       throw e;
     }
   };
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const extractTokenFromResponse = (res: any): string | undefined => {
-    // حاول عدة مسارات محتملة للاستجابة
     if (!res) return undefined;
-    // axios عادةً يضع في res.data
     const d = res.data ?? res;
     return (
       d?.token ??
@@ -58,18 +45,29 @@ export const useAuth = () => {
     );
   };
 
-  const persistToken = (token?: string) => {
-    if (!token) return;
-    const opts = { ...COOKIE_OPTIONS } as Cookies.CookieAttributes;
-    // فعّل secure في بيئة production
+  const getCookieOptions = (): Cookies.CookieAttributes => {
+    const opts = { ...COOKIE_OPTIONS };
     if (import.meta.env && import.meta.env.PROD) {
       opts.secure = true;
     }
-    Cookies.set(COOKIE_NAME, token, opts);
+    return opts;
   };
 
-  const clearToken = () => {
+  const persistToken = (token?: string) => {
+    if (!token) return;
+    Cookies.set(COOKIE_NAME, token, getCookieOptions());
+  };
+
+  // ✅ خزّن الـ user data (role, branchId, ...) في cookie منفصلة
+  const persistUser = (res: any) => {
+    const userData = res?.data?.data ?? res?.data ?? null;
+    if (!userData) return;
+    Cookies.set(USER_COOKIE, JSON.stringify(userData), getCookieOptions());
+  };
+
+  const clearAuth = () => {
     Cookies.remove(COOKIE_NAME, { path: '/' });
+    Cookies.remove(USER_COOKIE, { path: '/' });
   };
 
   const logIn = async (payload: LoginPayload) => {
@@ -77,14 +75,13 @@ export const useAuth = () => {
     setError(null);
     try {
       const res = await authService.logIn(payload);
-      // محاولة استخراج التوكن
+
       const token = extractTokenFromResponse(res);
-      if (token) {
-        persistToken(token);
-      } else {
-        // لا توكن؟ نتركه لكن نحذّر في الكونسول (لا يرمي خطأ لأن التطبيقات قد تعتمد على سلوك مختلف)
-        // console.warn('login: no token found in response', res);
-      }
+      if (token) persistToken(token);
+
+      // ✅ خزّن الـ user data عشان نقدر نقرأ الـ role والـ branchId بعدين
+      persistUser(res);
+
       setLoading(false);
       return res;
     } catch (e: unknown) {
@@ -99,7 +96,6 @@ export const useAuth = () => {
     setLoading(true);
     setError(null);
     try {
-      // محاولة استدعاء خدمة الخروج على السيرفر (إن وُجد)
       let res;
       try {
         res = await authService.logout();
@@ -107,7 +103,8 @@ export const useAuth = () => {
         console.error('logout error:', e);
         res = null;
       }
-      clearToken();
+      // ✅ امسح التوكن والـ user data مع بعض
+      clearAuth();
       setLoading(false);
       return res;
     } catch (e: unknown) {
@@ -118,8 +115,17 @@ export const useAuth = () => {
     }
   };
 
-  const getToken = () => {
-    return Cookies.get(COOKIE_NAME);
+  const getToken = () => Cookies.get(COOKIE_NAME);
+
+  // ✅ helper لقراءة الـ user data من الكوكيز في أي مكان
+  const getUser = (): { role?: string; branchId?: string; name?: string; [key: string]: any } | null => {
+    try {
+      const raw = Cookies.get(USER_COOKIE);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   };
 
   const isAuthenticated = Boolean(getToken());
@@ -131,6 +137,7 @@ export const useAuth = () => {
     logIn,
     logout,
     getToken,
+    getUser,
     isAuthenticated,
   } as const;
 };

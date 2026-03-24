@@ -1,35 +1,155 @@
 // src/components/Dispatch/page/RiderShiftSettlement.tsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback } from "react";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { useDrivers } from "../hooks/useDrivers";
+import { useDriverDispatches } from "../hooks/useDispatches";
+import {
+  useSettlements,
+  useDriverSettlements,
+  createSettlementFn,
+  settleShiftFn,
+  updateSettlementFn,
+  deleteSettlementFn,
+} from "../hooks/Usesettlements";
+import { invalidateQuery } from "../../../hook/queryClient";
+import type { Settlement } from "../services/Settlementservice";
+import type { Driver } from "../services/driverService";
+import type { ApiBranch } from "../../layout/Topbar";
 
-const mockShiftOrders = [
-  { id: "ORD-9925", time: "12:45 PM", status: "Delivered", collected: "$25", deliveryFee: "$25", commission: "-$5", netAmount: "$45" },
-  { id: "ORD-9926", time: "12:45 PM", status: "Delivered", collected: "$25", deliveryFee: "$25", commission: "-$5", netAmount: "$45" },
-  { id: "ORD-9927", time: "12:45 PM", status: "Failed",    collected: "$00", deliveryFee: "$00", commission: "$00", netAmount: "$00" },
-  { id: "ORD-9928", time: "12:45 PM", status: "Delivered", collected: "$25", deliveryFee: "$25", commission: "-$5", netAmount: "$45" },
-  { id: "ORD-9929", time: "12:45 PM", status: "Delivered", collected: "$25", deliveryFee: "$25", commission: "-$5", netAmount: "$45" },
-  { id: "ORD-9930", time: "12:45 PM", status: "Delivered", collected: "$25", deliveryFee: "$25", commission: "-$5", netAmount: "$45" },
-];
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-/* ─── Close Shift Modal ─────────────────────────────────────────── */
-function CloseShiftModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+// ─── Branch helper ────────────────────────────────────────────────────────────
+
+function useBranchId(): string | undefined {
+  const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
+  const b = outlet?.activeBranch ?? null;
+  const candidates = [b?.id, b?._id];
+  return candidates.find(v => typeof v === "string" && /^[a-f\d]{24}$/i.test(v));
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const statusBadge: Record<string, string> = {
+  delivered: "bg-green-100 text-green-700",
+  failed:    "bg-red-100 text-red-600",
+  pending:   "bg-yellow-100 text-yellow-700",
+  settled:   "bg-blue-100 text-blue-700",
+};
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ─── Close Shift Modal ────────────────────────────────────────────────────────
+
+function CloseShiftModal({
+  driver,
+  dispatches,
+  branchId,
+  existingSettlementId,
+  onCancel,
+  onDone,
+}: {
+  driver:                Driver;
+  dispatches:            any[];
+  branchId:              string;
+  existingSettlementId?: string;
+  onCancel:              () => void;
+  onDone:                () => void;
+}) {
   const [cashAmount, setCashAmount] = useState("");
+  const [notes,      setNotes]      = useState("");
+  const [loading,    setLoading]    = useState(false);
+  const [apiError,   setApiError]   = useState<string | null>(null);
+  const [cashErr,    setCashErr]    = useState("");
+
+  const driverId        = driver.id ?? "";
+  const driverName      = driver.name ?? "Driver";
+  const delivered       = dispatches.filter(d => d.status === "delivered");
+  const failed          = dispatches.filter(d => d.status === "failed");
+  const totalCash       = delivered.reduce((s: number, d: any) => s + (Number(d.cashCollected) || 0), 0);
+  const totalFees       = delivered.reduce((s: number, d: any) => s + (Number(d.deliveryFee)   || 0), 0);
+  const totalCommission = delivered.reduce((s: number, d: any) => s + (Number(d.commission)    || 0), 0);
+  const netToSubmit     = totalCash - totalCommission;
+  const variance        = cashAmount ? Number(cashAmount) - netToSubmit : null;
+
+  const validate = () => {
+    if (!cashAmount.trim()) { setCashErr("Please enter the actual cash received"); return false; }
+    if (isNaN(Number(cashAmount)) || Number(cashAmount) < 0) { setCashErr("Enter a valid positive amount"); return false; }
+    setCashErr(""); return true;
+  };
+
+  const handleConfirm = async () => {
+    if (!validate()) return;
+    setLoading(true); setApiError(null);
+    try {
+      const now = new Date();
+      const shiftStart = new Date(now); shiftStart.setHours(0, 0, 0, 0);
+
+      if (existingSettlementId) {
+        // Already have a settlement — just settle it
+        await settleShiftFn(existingSettlementId, {
+          settledAt: now.toISOString(),
+          notes:     notes.trim() || "Shift closed",
+        });
+      } else {
+        // Create settlement first, then settle
+        const created = await createSettlementFn({
+          driverId,
+          branchId,
+          shiftDate:           today(),
+          shiftStart:          shiftStart.toISOString(),
+          shiftEnd:            now.toISOString(),
+          totalOrders:         dispatches.length,
+          deliveredOrders:     delivered.length,
+          failedOrders:        failed.length,
+          totalCashCollected:  Number(cashAmount),
+          totalDeliveryFees:   totalFees,
+          totalCommission,
+        });
+        const settlementId = created?.data?.id ?? created?.id;
+        if (settlementId) {
+          await settleShiftFn(settlementId, {
+            settledAt: now.toISOString(),
+            notes:     notes.trim() || "Shift closed",
+          });
+        }
+      }
+
+      invalidateQuery("settlements");
+      onDone();
+    } catch (err: any) {
+      const data = err?.response?.data ?? err?.data ?? err;
+      setApiError(data?.message ?? err?.message ?? "Failed to close shift.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-[#f0f7ff] rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl">
         <h2 className="text-2xl font-bold text-gray-900">Close Shift & Settle Finances</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Settlement for <strong className="text-gray-700">Mohamed Morsy</strong>
+          Settlement for <strong className="text-gray-700">{driverName}</strong>
         </p>
         <div className="border-t border-gray-200 my-5" />
 
+        {apiError && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 flex items-start gap-2">
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            {apiError}
+          </div>
+        )}
+
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-5">
           {[
-            { label: "Orders",        value: "24"      },
-            { label: "Collected",     value: "$450.00" },
-            { label: "Net to Submit", value: "$407.50" },
+            { label: "Orders",        value: String(dispatches.length) },
+            { label: "Collected",     value: `$${totalCash.toFixed(2)}` },
+            { label: "Net to Submit", value: `$${netToSubmit.toFixed(2)}` },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-sm">
               <p className="text-xs text-gray-500 mb-1">{s.label}</p>
@@ -39,47 +159,62 @@ function CloseShiftModal({ onCancel, onConfirm }: { onCancel: () => void; onConf
         </div>
 
         {/* Cash Input */}
-        <div className="mb-5">
+        <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">Actual Cash Received</label>
-          <div className="bg-white rounded-2xl border border-gray-200 flex items-center px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 transition">
+          <div className={`bg-white rounded-2xl border flex items-center px-4 py-3 shadow-sm focus-within:ring-2 transition ${
+            cashErr ? "border-red-400 focus-within:ring-red-300" : "border-gray-200 focus-within:ring-blue-500"
+          }`}>
             <span className="text-gray-400 text-sm mr-2">$</span>
             <input
-              type="number"
-              placeholder="0.00"
+              type="number" min="0" step="0.01" placeholder="0.00"
               value={cashAmount}
-              onChange={e => setCashAmount(e.target.value)}
+              onChange={e => { setCashAmount(e.target.value); setCashErr(""); setApiError(null); }}
               className="flex-1 text-gray-800 text-sm bg-transparent focus:outline-none"
             />
             <span className="text-gray-400 text-sm ml-2">USD</span>
           </div>
-          <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            Enter the physical cash amount received to check for variance
-          </p>
+          {cashErr && <p className="text-xs text-red-500 mt-1">{cashErr}</p>}
         </div>
+
+        {/* Notes */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Notes <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            rows={2} placeholder="e.g. Shift completed successfully"
+            value={notes} onChange={e => setNotes(e.target.value)}
+            className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-sm"
+          />
+        </div>
+
+        {/* Variance */}
+        {variance !== null && (
+          <div className={`mb-4 rounded-xl px-4 py-3 flex items-center justify-between text-sm font-semibold ${
+            variance === 0 ? "bg-green-50 text-green-700" :
+            variance  > 0 ? "bg-blue-50 text-blue-700"   : "bg-red-50 text-red-600"
+          }`}>
+            <span>{variance === 0 ? "✅ Exact match" : variance > 0 ? "⬆ Surplus" : "⬇ Shortage"}</span>
+            <span>${Math.abs(variance).toFixed(2)}</span>
+          </div>
+        )}
 
         {/* Warning */}
         <div className="bg-red-50 border-l-4 border-red-400 rounded-xl p-4 mb-6">
-          <div className="flex items-start gap-2">
-            <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p className="text-sm text-red-600">
-              Closing the shift will <strong>lock all records</strong> for this period and cannot be undone. Please verify all amounts.
-            </p>
-          </div>
+          <p className="text-sm text-red-600">
+            Closing the shift will <strong>lock all records</strong> for this period and cannot be undone.
+          </p>
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onCancel}
-            className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
+          <button onClick={onCancel} disabled={loading}
+            className="px-6 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={onConfirm}
-            className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md">
-            Close shift
+          <button onClick={handleConfirm} disabled={loading}
+            className="px-6 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md disabled:opacity-60 flex items-center gap-2">
+            {loading && <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>}
+            {loading ? "Closing..." : "Close Shift"}
           </button>
         </div>
       </div>
@@ -87,116 +222,392 @@ function CloseShiftModal({ onCancel, onConfirm }: { onCancel: () => void; onConf
   );
 }
 
-/* ─── Main Page ─────────────────────────────────────────────────── */
-export default function RiderShiftSettlement() {
-  const navigate                      = useNavigate();
-  const [page, setPage]               = useState(1);
-  const [showCloseModal, setShowClose] = useState(false);
+// ─── Edit Settlement Modal ─────────────────────────────────────────────────────
 
-  const handleShiftClosed = () => {
-    setShowClose(false);
-    // After closing shift → back to dispatch main
-    navigate("/dashboard/dispatch");
+function EditSettlementModal({
+  settlement,
+  onClose,
+}: {
+  settlement: Settlement;
+  onClose:    () => void;
+}) {
+  const [notes,    setNotes]    = useState(settlement.notes ?? "");
+  const [loading,  setLoading]  = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setLoading(true); setApiError(null);
+    try {
+      await updateSettlementFn(settlement.id!, { notes: notes.trim() });
+      invalidateQuery("settlements");
+      onClose();
+    } catch (err: any) {
+      setApiError(err?.response?.data?.message ?? "Failed to update settlement.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleDelete = async () => {
+    if (!confirm("Delete this settlement? This cannot be undone.")) return;
+    setLoading(true);
+    try {
+      await deleteSettlementFn(settlement.id!);
+      invalidateQuery("settlements");
+      onClose();
+    } catch (err: any) {
+      setApiError(err?.response?.data?.message ?? "Failed to delete settlement.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-[#f0f7ff] rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl">
+        <h2 className="text-xl font-bold text-gray-900">Edit Settlement</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          {settlement.driverName ?? "Driver"} · {settlement.shiftDate}
+        </p>
+        <div className="border-t border-gray-200 my-4" />
+
+        {apiError && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{apiError}</div>
+        )}
+
+        {/* Read-only stats */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          {[
+            { label: "Total Orders",     value: settlement.totalOrders ?? 0 },
+            { label: "Delivered",        value: settlement.deliveredOrders ?? 0 },
+            { label: "Failed",           value: settlement.failedOrders ?? 0 },
+            { label: "Cash Collected",   value: `$${(settlement.totalCashCollected ?? 0).toFixed(2)}` },
+            { label: "Delivery Fees",    value: `$${(settlement.totalDeliveryFees ?? 0).toFixed(2)}` },
+            { label: "Commission",       value: `$${(settlement.totalCommission ?? 0).toFixed(2)}` },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+              <p className="text-xs text-gray-400 mb-1">{s.label}</p>
+              <p className="font-bold text-gray-800">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+          <textarea
+            rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="e.g. Adjusted commission"
+            className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button onClick={handleDelete} disabled={loading}
+            className="px-4 py-2.5 rounded-2xl border border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 transition disabled:opacity-50">
+            Delete
+          </button>
+          <div className="flex-1" />
+          <button onClick={onClose} disabled={loading}
+            className="px-5 py-2.5 rounded-2xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={loading}
+            className="px-5 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-md disabled:opacity-60 flex items-center gap-2">
+            {loading && <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>}
+            {loading ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Driver Settlement Panel (slide-in) ───────────────────────────────────────
+
+function DriverSettlementPanel({
+  driver,
+  onClose,
+  onCloseShift,
+}: {
+  driver:        Driver;
+  onClose:       () => void;
+  onCloseShift:  (driver: Driver) => void;
+}) {
+  const driverId = driver.id ?? "";
+  const [editingSettlement, setEditingSettlement] = useState<Settlement | null>(null);
+
+  const { data, isLoading, isError } = useDriverSettlements(driverId, { limit: 10 });
+  const settlements: Settlement[] = data?.data ?? [];
+
+  return (
+    <>
+      {editingSettlement && (
+        <EditSettlementModal
+          settlement={editingSettlement}
+          onClose={() => setEditingSettlement(null)}
+        />
+      )}
+
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-[#f0f7ff] px-6 py-5 border-b border-gray-200 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">{driver.name}</h2>
+            <p className="text-sm text-gray-500 capitalize">{driver.vehicleType} · {driver.vehiclePlate}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-xs text-gray-500">⭐ {driver.rating ?? 0}</span>
+              <span className="text-xs text-gray-500">📦 {driver.totalDeliveries ?? 0} total</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                driver.status === "present" ? "bg-green-100 text-green-700" :
+                driver.status === "busy"    ? "bg-blue-100 text-blue-700"   :
+                "bg-gray-100 text-gray-500"
+              }`}>{driver.status}</span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition text-xl leading-none">✕</button>
+        </div>
+
+        {/* Today stats */}
+        {driver.todayStats && (
+          <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-4 text-sm">
+            <span className="text-blue-700 font-semibold">Today:</span>
+            <span className="text-blue-600">📋 {driver.todayStats.assigned ?? 0} assigned</span>
+            <span className="text-green-600">✓ {driver.todayStats.delivered ?? 0} delivered</span>
+          </div>
+        )}
+
+        {/* Close Shift button */}
+        <div className="px-6 py-3 border-b border-gray-100">
+          <button
+            onClick={() => onCloseShift(driver)}
+            className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+          >
+            Close Shift & Create Settlement
+          </button>
+        </div>
+
+        {/* Settlements list */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <h3 className="text-sm font-bold text-gray-700 mb-3">Settlement History</h3>
+
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <svg className="animate-spin w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+            </div>
+          )}
+
+          {isError && (
+            <p className="text-sm text-red-500 text-center py-4">Failed to load settlements.</p>
+          )}
+
+          {!isLoading && !isError && settlements.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-8">No settlements yet for this driver.</p>
+          )}
+
+          <div className="space-y-3">
+            {settlements.map(s => (
+              <div key={s.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{s.shiftDate}</p>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusBadge[s.status ?? "pending"] ?? "bg-gray-100 text-gray-600"}`}>
+                      {s.status ?? "pending"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setEditingSettlement(s)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition"
+                    title="Edit Settlement"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs text-gray-500">
+                  <div><span className="block text-gray-400">Orders</span><span className="font-semibold text-gray-700">{s.totalOrders ?? 0}</span></div>
+                  <div><span className="block text-gray-400">Collected</span><span className="font-semibold text-gray-700">${(s.totalCashCollected ?? 0).toFixed(2)}</span></div>
+                  <div><span className="block text-gray-400">Commission</span><span className="font-semibold text-red-500">-${(s.totalCommission ?? 0).toFixed(2)}</span></div>
+                </div>
+                {s.notes && <p className="text-xs text-gray-400 mt-2 italic">"{s.notes}"</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function RiderShiftSettlement() {
+  const navigate  = useNavigate();
+  const branchId  = useBranchId() ?? "";
+  const [page, setPage]                          = useState(1);
+  const [showClose,      setShowClose]           = useState(false);
+  const [selectedDriver, setSelectedDriver]      = useState<Driver | null>(null);
+  const [closingDriver,  setClosingDriver]        = useState<Driver | null>(null);
+  const [settlementsPage, setSettlementsPage]    = useState(1);
+  const [editingSettlement, setEditingSettlement] = useState<Settlement | null>(null);
+
+  // ── All settlements (for the main table) ──
+  const {
+    data:      settlementsData,
+    isLoading: settlementsLoading,
+    isError:   settlementsError,
+    refetch:   refetchSettlements,
+  } = useSettlements({ sort: "-shiftDate", limit: 10, page: settlementsPage });
+
+  const settlements: Settlement[]  = settlementsData?.data ?? [];
+  const settlementsTotalPages       = settlementsData?.paginationResult?.totalPages ?? 1;
+  const settlementsTotalDocs        = settlementsData?.paginationResult?.totalDocs  ?? 0;
+
+  // ── All drivers ──
+  const { data: driversData, isLoading: driversLoading } = useDrivers({ sort: "-createdAt", limit: 50 });
+  const drivers: Driver[] = driversData?.data ?? [];
+
+  // ── Selected driver dispatches (for CloseShiftModal) ──
+  const closingDriverId = closingDriver?.id ?? "";
+  const { data: dispatchData } = useDriverDispatches(closingDriverId, { limit: 100 });
+  const closingDriverDispatches: any[] = dispatchData?.data ?? [];
+
+  const handleShiftClosed = useCallback(() => {
+    setShowClose(false);
+    setClosingDriver(null);
+    setSelectedDriver(null);
+    invalidateQuery("settlements");
+    navigate("/dashboard/dispatch");
+  }, [navigate]);
+
+  const handleCloseShiftForDriver = (driver: Driver) => {
+    setClosingDriver(driver);
+    setSelectedDriver(null);
+    setShowClose(true);
+  };
+
+  const ITEMS_PER_PAGE = 6;
+  const totalPages     = Math.max(1, Math.ceil(drivers.length / ITEMS_PER_PAGE));
+  const paginatedDrivers = drivers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
 
-      {/* Close Shift Modal */}
-      {showCloseModal && (
+      {/* ── Modals ── */}
+      {showClose && closingDriver && (
         <CloseShiftModal
-          onCancel={() => setShowClose(false)}
-          onConfirm={handleShiftClosed}
+          driver={closingDriver}
+          dispatches={closingDriverDispatches}
+          branchId={branchId}
+          onCancel={() => { setShowClose(false); setClosingDriver(null); }}
+          onDone={handleShiftClosed}
         />
       )}
 
-      {/* Header */}
+      {selectedDriver && (
+        <DriverSettlementPanel
+          driver={selectedDriver}
+          onClose={() => setSelectedDriver(null)}
+          onCloseShift={handleCloseShiftForDriver}
+        />
+      )}
+
+      {editingSettlement && (
+        <EditSettlementModal
+          settlement={editingSettlement}
+          onClose={() => setEditingSettlement(null)}
+        />
+      )}
+
+      {/* ── Header ── */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <nav className="text-xs text-gray-400 mb-1 flex items-center gap-1">
             <button onClick={() => navigate("/dashboard/dispatch")} className="hover:text-blue-600 transition">
-              Home / Orders /
+              Home / Dispatch /
             </button>
-            <span className="text-blue-600">Dispatch</span>
+            <span className="text-blue-600">Rider Shift</span>
           </nav>
           <h1 className="text-xl font-bold text-gray-900">Rider Shift & Settlement</h1>
-          <p className="text-sm text-gray-500">
-            Review shift performance and settle finances for <strong>Mohamed Morsy</strong>
-          </p>
+          <p className="text-sm text-gray-500">Manage driver shifts and financial settlements</p>
         </div>
-        {/* Close Shift → opens modal */}
-        <button
-          onClick={() => setShowClose(true)}
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-700 transition self-start sm:self-auto"
-        >
-          Close Shift
-        </button>
       </div>
 
       <div className="p-4 sm:p-6 space-y-6">
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Total orders</p>
-            <p className="text-3xl font-bold text-gray-900">24</p>
-            <p className="text-xs text-gray-500 mt-1">22 Delivered / 2 Failed</p>
-            <p className="text-xs text-green-600 font-semibold mt-0.5">Success Rate: 91.6%</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Total Cash Collected</p>
-            <p className="text-3xl font-bold text-gray-900">$4,250</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Commission</p>
-            <p className="text-3xl font-bold text-red-500">$50-</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500 mb-2">Net amount</p>
-            <p className="text-3xl font-bold text-gray-900">4,200</p>
-            <p className="text-xs text-gray-500 mt-1">After commission deduction</p>
-          </div>
-        </div>
-
-        {/* Orders Table */}
+        {/* ── All Settlements Table ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-bold text-gray-800">All Settlements</h2>
+            <span className="text-xs text-gray-400">{settlementsTotalDocs} total</span>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  {["ORDER ID","TIME","STATUS","COLLECTED","DELIVERY FEE","COMMISSION","NET AMOUNT","ACTION"].map(h => (
+                  {["DRIVER", "SHIFT DATE", "ORDERS", "DELIVERED", "FAILED", "CASH", "COMMISSION", "STATUS", "ACTION"].map(h => (
                     <th key={h} className="text-left text-xs font-semibold text-gray-500 px-4 py-3 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {mockShiftOrders.map((order, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 font-medium text-gray-800">#{order.id}</td>
-                    <td className="px-4 py-3 text-gray-600">{order.time}</td>
+                {settlementsLoading && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-10 text-gray-400 text-sm">
+                      <svg className="animate-spin w-5 h-5 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                      Loading settlements...
+                    </td>
+                  </tr>
+                )}
+                {settlementsError && !settlementsLoading && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-10">
+                      <p className="text-red-500 text-sm mb-2">Failed to load settlements.</p>
+                      <button onClick={refetchSettlements}
+                        className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                )}
+                {!settlementsLoading && !settlementsError && settlements.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-10 text-gray-400 text-sm">No settlements found.</td>
+                  </tr>
+                )}
+                {!settlementsLoading && !settlementsError && settlements.map(s => (
+                  <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
                     <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        order.status === "Delivered" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                      }`}>
-                        {order.status}
+                      <p className="font-medium text-gray-800 text-sm">{s.driverName ?? "—"}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{s.shiftDate ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-gray-700 font-semibold">{s.totalOrders ?? 0}</td>
+                    <td className="px-4 py-3 text-xs text-green-600 font-semibold">{s.deliveredOrders ?? 0}</td>
+                    <td className="px-4 py-3 text-xs text-red-500 font-semibold">{s.failedOrders ?? 0}</td>
+                    <td className="px-4 py-3 text-xs text-gray-800 font-semibold">${(s.totalCashCollected ?? 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-xs text-red-500 font-semibold">-${(s.totalCommission ?? 0).toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge[s.status ?? "pending"] ?? "bg-gray-100 text-gray-600"}`}>
+                        {s.status ?? "pending"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{order.collected}</td>
-                    <td className="px-4 py-3 text-gray-700">{order.deliveryFee}</td>
-                    <td className={`px-4 py-3 font-medium ${order.commission.includes("-") ? "text-red-500" : "text-gray-700"}`}>
-                      {order.commission}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-800">{order.netAmount}</td>
                     <td className="px-4 py-3">
-                      {/* View order details */}
                       <button
-                        onClick={() => navigate(`/dashboard/dispatch/order/${order.id}`)}
-                        className="text-gray-400 hover:text-blue-600 transition p-1"
-                        title="View Details"
+                        onClick={() => setEditingSettlement(s)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+                        title="Edit"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
                         </svg>
                       </button>
                     </td>
@@ -205,20 +616,123 @@ export default function RiderShiftSettlement() {
               </tbody>
             </table>
           </div>
+
+          {/* Settlements pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <span className="text-xs text-gray-500">Showing <strong>1-6</strong> from <strong>100</strong> data</span>
+            <span className="text-xs text-gray-500">
+              Showing <strong>{settlements.length}</strong> from <strong>{settlementsTotalDocs}</strong>
+            </span>
             <div className="flex items-center gap-1">
-              <button className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs hover:bg-gray-50">‹</button>
-              {[1, 2, 3].map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`w-7 h-7 rounded-lg text-xs font-semibold ${page === p ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"}`}
-                >
+              <button disabled={settlementsPage <= 1} onClick={() => setSettlementsPage(p => p - 1)}
+                className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-40">‹</button>
+              {Array.from({ length: Math.min(settlementsTotalPages, 5) }, (_, i) => i + 1).map(p => (
+                <button key={p} onClick={() => setSettlementsPage(p)}
+                  className={`w-7 h-7 rounded-lg text-xs font-semibold ${settlementsPage === p ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"}`}>
                   {p}
                 </button>
               ))}
-              <button className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs hover:bg-gray-50">›</button>
+              <button disabled={settlementsPage >= settlementsTotalPages} onClick={() => setSettlementsPage(p => p + 1)}
+                className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-40">›</button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Drivers Table (click row → DriverSettlementPanel) ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h2 className="font-bold text-gray-800">Drivers</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Click any driver to view their settlements and close shift</p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {["DRIVER", "VEHICLE", "STATUS", "TODAY", "TOTAL DELIVERIES", "RATING", "ACTION"].map(h => (
+                    <th key={h} className="text-left text-xs font-semibold text-gray-500 px-4 py-3 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {driversLoading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-400 text-sm">Loading drivers...</td>
+                  </tr>
+                )}
+                {!driversLoading && paginatedDrivers.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-400 text-sm">No drivers found.</td>
+                  </tr>
+                )}
+                {paginatedDrivers.map(driver => {
+                  const dId      = driver.id ?? "";
+                  const statusKey = driver.status ?? "offline";
+                  const driverStatusColors: Record<string, string> = {
+                    present: "bg-green-100 text-green-700",
+                    busy:    "bg-blue-100 text-blue-700",
+                    absent:  "bg-orange-100 text-orange-700",
+                    offline: "bg-gray-100 text-gray-500",
+                  };
+
+                  return (
+                    <tr
+                      key={dId}
+                      onClick={() => setSelectedDriver(driver)}
+                      className="border-b border-gray-50 hover:bg-blue-50 transition cursor-pointer"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-800">{driver.name ?? "—"}</p>
+                        <p className="text-xs text-gray-400">{driver.phone ?? ""}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-gray-700 capitalize">{driver.vehicleType ?? "—"}</p>
+                        <p className="text-xs text-gray-400">{driver.vehiclePlate ?? ""}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${driverStatusColors[statusKey] ?? "bg-gray-100 text-gray-500"}`}>
+                          {statusKey}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">
+                        {driver.todayStats?.assigned ?? 0} assigned · {driver.todayStats?.delivered ?? 0} ✓
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 font-medium">
+                        {(driver.totalDeliveries ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600">
+                        ⭐ {driver.rating ?? 0}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedDriver(driver); }}
+                          className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100 transition whitespace-nowrap"
+                        >
+                          View Settlements →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Drivers pagination */}
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <span className="text-xs text-gray-500">
+              Showing <strong>{paginatedDrivers.length}</strong> from <strong>{drivers.length}</strong>
+            </span>
+            <div className="flex items-center gap-1">
+              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-40">‹</button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+                <button key={p} onClick={() => setPage(p)}
+                  className={`w-7 h-7 rounded-lg text-xs font-semibold ${page === p ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"}`}>
+                  {p}
+                </button>
+              ))}
+              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
+                className="w-7 h-7 rounded-lg border border-gray-200 text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-40">›</button>
             </div>
           </div>
         </div>
