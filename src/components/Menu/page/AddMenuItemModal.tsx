@@ -8,7 +8,7 @@ interface AddMenuItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved?: () => void;
-  branchId: string;
+  branchId?: string; // ← optional
 }
 
 interface FormState {
@@ -123,7 +123,7 @@ export default function AddMenuItemModal({
       price:       String(form.price),
       category:    CAT_LOWER[form.category],
       isAvailable: form.available ? "true" : "false",
-      branchId:    branchId,
+branchId: branchId ?? "",
       image:       form.imageFile ?? null,   // File أو null
     });
     handleClose();
