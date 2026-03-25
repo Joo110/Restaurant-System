@@ -1,4 +1,3 @@
-// src/components/layout/DashboardLayout.tsx
 import React, { useState, useMemo, useCallback } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -16,6 +15,41 @@ type NavItem = {
   label:     string;
   icon:      React.ElementType;
   children?: { path: string; label: string; icon: React.ElementType }[];
+};
+
+/* ── helpers ────────────────────────────────────────────────────── */
+const getUserRole = (): string | null => {
+  if (typeof window === "undefined") return null;
+
+  const tryParseRole = (value: string | undefined | null): string | null => {
+    if (!value) return null;
+
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "string") return parsed;
+      if (parsed && typeof parsed === "object" && "role" in parsed) {
+        return typeof parsed.role === "string" ? parsed.role : null;
+      }
+    } catch {
+      // not JSON, treat as raw role string
+    }
+
+    return value;
+  };
+
+  const cookieKeys = ["user", "authUser", "profile", "currentUser", "role"];
+  for (const key of cookieKeys) {
+    const cookieValue = tryParseRole(Cookies.get(key));
+    if (cookieValue) return cookieValue;
+  }
+
+  const storageKeys = ["user", "authUser", "profile", "currentUser", "role"];
+  for (const key of storageKeys) {
+    const storageValue = tryParseRole(localStorage.getItem(key));
+    if (storageValue) return storageValue;
+  }
+
+  return null;
 };
 
 /* ── nav config ─────────────────────────────────────────────────── */
@@ -66,7 +100,8 @@ const SidebarNav: React.FC<{
   setCollapsed:     (v: boolean) => void;
   onLinkClick?:     () => void;
   showCollapseBtn?: boolean;
-}> = ({ collapsed, setCollapsed, onLinkClick, showCollapseBtn = true }) => {
+  role?: string | null;
+}> = ({ collapsed, setCollapsed, onLinkClick, showCollapseBtn = true, role }) => {
 
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const isOpen = (path: string) => openMenus[path] ?? false;
@@ -74,6 +109,18 @@ const SidebarNav: React.FC<{
     if (collapsed) return;
     setOpenMenus((prev) => ({ ...prev, [path]: !prev[path] }));
   };
+
+  const visibleNavItems = useMemo(() => {
+    if (role === "manager") {
+      return navItems.filter(
+        (item) =>
+          item.path !== "/dashboard/Executivedashboard" &&
+          item.path !== "/dashboard/branches"
+      );
+    }
+
+    return navItems;
+  }, [role]);
 
   return (
     <>
@@ -92,7 +139,7 @@ const SidebarNav: React.FC<{
 
       {/* ── Nav Links ── */}
       <nav className="flex-1 py-4 px-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
-        {navItems.map(({ path, label, icon: Icon, children }) => {
+        {visibleNavItems.map(({ path, label, icon: Icon, children }) => {
 
           /* ── dropdown group ── */
           if (children) {
@@ -192,6 +239,8 @@ const DashboardLayout: React.FC = () => {
   const [mobileOpen,   setMobileOpen]   = useState(false);
   const [activeBranch, setActiveBranch] = useState<ApiBranch | null>(null);
 
+  const userRole = useMemo(() => getUserRole(), []);
+
   const handleBranchChange = useCallback((branch: ApiBranch | null) => {
     setActiveBranch(branch);
   }, []);
@@ -203,7 +252,7 @@ const DashboardLayout: React.FC = () => {
 
       {/* ── Desktop sidebar ── */}
       <aside className={`hidden lg:flex flex-col bg-white border-r border-gray-100 transition-all duration-300 ease-in-out flex-shrink-0 ${collapsed ? "w-16" : "w-56"}`}>
-        <SidebarNav collapsed={collapsed} setCollapsed={setCollapsed} />
+        <SidebarNav collapsed={collapsed} setCollapsed={setCollapsed} role={userRole} />
       </aside>
 
       {/* ── Mobile drawer ── */}
@@ -216,6 +265,7 @@ const DashboardLayout: React.FC = () => {
               setCollapsed={setCollapsed}
               onLinkClick={() => setMobileOpen(false)}
               showCollapseBtn={false}
+              role={userRole}
             />
             <button
               onClick={() => setMobileOpen(false)}

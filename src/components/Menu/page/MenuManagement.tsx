@@ -71,6 +71,8 @@ interface MenuManagementProps {
   onEditItem: (item: MenuItem) => void;
   /** optional branch id (mongo _id) passed from parent so add-modal can include it */
   branchId?: string;
+  /** incrementing signal to refetch data */
+  refreshTrigger?: number;
 }
 
 /* ─── Food Image Placeholder ─────────────────────────────────────────────── */
@@ -108,7 +110,7 @@ const SkeletonCard = () => (
 );
 
 /* ─── Main Component ──────────────────────────────────────────────────────── */
-export default function MenuManagement({ onAddItem, onEditItem, branchId }: MenuManagementProps) {
+export default function MenuManagement({ onAddItem, onEditItem, branchId, refreshTrigger }: MenuManagementProps) {
   const [activeCategory, setActiveCategory] = useState<Category>("All Items");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -161,6 +163,12 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId }: Menu
 
   const { data, isLoading, isError, error, refetch } = useItems(queryParams);
 
+  useEffect(() => {
+    if (typeof refreshTrigger !== "undefined") {
+      refetch();
+    }
+  }, [refreshTrigger, refetch]);
+
   // API returns { data: [...], stats: { byCategory: {...} }, ... }
   // Normalise raw API items into our MenuItem shape
   const allItems: MenuItem[] = useMemo(
@@ -206,14 +214,11 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId }: Menu
   };
 
   // Guarded add button: require effectiveBranchId before calling parent onAddItem
-  const handleAddClick = () => {
-    if (!effectiveBranchId) {
-      alert("Please select a branch before adding an item.");
-      return;
-    }
-    onAddItem();
-  };
-
+const handleAddClick = () => {
+  console.log("Add clicked!");
+  onAddItem(); // بتفتح المودال في المفروض
+  console.log("Modal state should now be true");
+};
   return (
     <div className="flex h-full bg-gray-50 overflow-hidden relative">
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">

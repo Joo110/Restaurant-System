@@ -103,7 +103,7 @@ export const useExecutive = (params?: Pick<AccountsQueryParams, 'branchId' | 'fr
 
 // ─────────────────────────── useFinance ───────────────────────────
 
-export const useFinance = (params?: Pick<AccountsQueryParams, 'branchId' | 'year'>) => {
+export const useFinance = (params?: Pick<AccountsQueryParams, "branchId" | "year">) => {
   const [data, setData] = useState<FinanceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown | null>(null);
@@ -113,27 +113,31 @@ export const useFinance = (params?: Pick<AccountsQueryParams, 'branchId' | 'year
 
   const fetcher = useCallback(async () => {
     controllerRef.current?.abort();
-    controllerRef.current = new AbortController();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setIsLoading(true);
     setError(null);
+
     try {
-      const res = await getFinance(params);
+      const res = await getFinance(params, controller.signal);
       if (!mountedRef.current) return;
       setData(res);
     } catch (err) {
-      if ((err as any)?.name === 'AbortError') return;
+      if ((err as any)?.name === "AbortError" || (err as any)?.code === "ERR_CANCELED") return;
       setError(err);
       setData(null);
     } finally {
       if (mountedRef.current) setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey]);
 
   useEffect(() => {
     mountedRef.current = true;
     fetcher();
-    const unsub = subscribeQuery('accounts-finance', () => fetcher());
+
+    const unsub = subscribeQuery("accounts-finance", () => fetcher());
+
     return () => {
       mountedRef.current = false;
       controllerRef.current?.abort();

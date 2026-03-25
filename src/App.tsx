@@ -79,11 +79,10 @@ const MenuPage: React.FC = () => {
         onEditItem={(item: MenuItem) => setEditItem(item)}
       />
 
-      {showAdd && (
-        <AddMenuItemModal
-          onClose={() => setShowAdd(false)}
-        />
-      )}
+      <AddMenuItemModal
+        isOpen={showAdd}
+        onClose={() => setShowAdd(false)}
+      />
 
       {editItem && (
         <EditMenuItemModal

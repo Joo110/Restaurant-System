@@ -1,6 +1,6 @@
-// src/components/layout/Sidebar.tsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
+import Cookies from "js-cookie";
 import {
   LayoutDashboard, UtensilsCrossed, ClipboardList, Package, Users,
   Table2, BarChart3, ChevronLeft, ChevronRight, ChevronDown,
@@ -10,6 +10,40 @@ import {
 
 type SubItem = { path: string; label: string; icon: React.ElementType };
 type NavItem = { path: string; label: string; icon: React.ElementType; children?: SubItem[] };
+
+const getUserRole = (): string | null => {
+  if (typeof window === "undefined") return null;
+
+  const tryParseRole = (value: string | undefined | null): string | null => {
+    if (!value) return null;
+
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "string") return parsed;
+      if (parsed && typeof parsed === "object" && "role" in parsed) {
+        return typeof parsed.role === "string" ? parsed.role : null;
+      }
+    } catch {
+      // not JSON, treat as raw role string
+    }
+
+    return value;
+  };
+
+  const cookieKeys = ["user", "authUser", "profile", "currentUser", "role"];
+  for (const key of cookieKeys) {
+    const cookieValue = tryParseRole(Cookies.get(key));
+    if (cookieValue) return cookieValue;
+  }
+
+  const storageKeys = ["user", "authUser", "profile", "currentUser", "role"];
+  for (const key of storageKeys) {
+    const storageValue = tryParseRole(localStorage.getItem(key));
+    if (storageValue) return storageValue;
+  }
+
+  return null;
+};
 
 const navItems: NavItem[] = [
   { path: "/dashboard",        label: "Dashboard", icon: LayoutDashboard },
@@ -32,13 +66,13 @@ const navItems: NavItem[] = [
   },
   { path: "/dashboard/branches",  label: "Branches",  icon: MapPin     },
   { path: "/dashboard/tables",    label: "Tables",    icon: Table2     },
-  { path: "/dashboard/finance",   label: "Finance",   icon: TrendingUp },   // ← NEW
+  { path: "/dashboard/finance",   label: "Finance",   icon: TrendingUp },
   { path: "/dashboard/analytics", label: "Analytics", icon: BarChart3  },
   {
     path: "/dashboard/reports", label: "Reports", icon: FileText,
     children: [
       { path: "/dashboard/reports",       label: "Reports",       icon: FileText },
-      { path: "/dashboard/notifications", label: "Notifications", icon: Bell     },  // ← NEW
+      { path: "/dashboard/notifications", label: "Notifications", icon: Bell     },
     ],
   },
   { path: "/dashboard/Executivedashboard", label: "Executive",  icon: LayoutDashboard },
@@ -52,6 +86,19 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick }) => {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const userRole = useMemo(() => getUserRole(), []);
+
+  const visibleNavItems = useMemo(() => {
+    if (userRole === "manager") {
+      return navItems.filter(
+        (item) =>
+          item.path !== "/dashboard/Executivedashboard" &&
+          item.path !== "/dashboard/branches"
+      );
+    }
+
+    return navItems;
+  }, [userRole]);
 
   const isOpen   = (path: string) => openMenus[path] ?? false;
   const toggle   = (path: string) => {
@@ -80,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick 
 
       {/* ── Nav ── */}
       <nav className="flex-1 py-4 px-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
-        {navItems.map(({ path, label, icon: Icon, children }) => {
+        {visibleNavItems.map(({ path, label, icon: Icon, children }) => {
           if (children) {
             const open = isOpen(path);
             return (

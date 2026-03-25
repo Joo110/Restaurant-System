@@ -1,4 +1,3 @@
-// src/components/Staff/page/StaffPage.tsx
 import { useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import type { ApiBranch } from "../../layout/Topbar";
@@ -8,16 +7,25 @@ import { invalidateQuery } from "../../../hook/queryClient";
 
 const roleFilters = ["All Employees", "chef", "waiters", "cashier", "hr", "kitchen"];
 
+function isObjectId(value?: string) {
+  return !!value && /^[a-f\d]{24}$/i.test(value);
+}
+
 export default function StaffPage() {
   const navigate = useNavigate();
 
   // ── Branch resolution ──
   const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranch = outlet?.activeBranch ?? null;
-  const effectiveBranchId =
-    activeBranch?.id ??
+
+  const effectiveBranchIdRaw =
     activeBranch?._id ??
-    (activeBranch?.branchId != null ? String(activeBranch.branchId) : undefined);
+    activeBranch?.id ??
+    undefined;
+
+  // ابعت ObjectId حقيقي فقط، بدون أي أرقام وهمية
+  const effectiveBranchId = isObjectId(effectiveBranchIdRaw) ? effectiveBranchIdRaw : undefined;
+
   const [activeRole, setActiveRole] = useState("All Employees");
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -31,9 +39,9 @@ export default function StaffPage() {
   const queryParams = {
     page: currentPage,
     limit,
-    ...(search && { keyword: search }),
-    ...(activeRole !== "All Employees" && { department: activeRole }),
-    ...(effectiveBranchId && { branchId: effectiveBranchId }),
+    ...(search ? { keyword: search } : {}),
+    ...(activeRole !== "All Employees" ? { department: activeRole } : {}),
+    ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
   };
 
   const { data, isLoading, isError, refetch } = useEmployees(queryParams);
@@ -84,27 +92,28 @@ export default function StaffPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 sm:p-5 font-sans">
-
       {/* Layout */}
       <div className="flex flex-col lg:flex-row gap-5">
-
         {/* ── Left — Table ── */}
         <div className="flex-1 min-w-0">
-
           {/* Filters row */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
             {/* Search */}
             <div className="relative w-full sm:max-w-xs">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
                 </svg>
               </span>
               <input
                 type="text"
                 placeholder="Search by name, ID or Job title..."
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -114,7 +123,10 @@ export default function StaffPage() {
               {roleFilters.map((r) => (
                 <button
                   key={r}
-                  onClick={() => { setActiveRole(r); setCurrentPage(1); }}
+                  onClick={() => {
+                    setActiveRole(r);
+                    setCurrentPage(1);
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                     activeRole === r
                       ? "bg-blue-500 text-white"
@@ -127,13 +139,7 @@ export default function StaffPage() {
             </div>
 
             <button
-              onClick={() => {
-                if (!effectiveBranchId) {
-                  alert("Please select a branch before adding an employee.");
-                  return;
-                }
-                setShowAdd(true);
-              }}
+              onClick={() => setShowAdd(true)}
               className="sm:ml-auto px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors whitespace-nowrap"
             >
               + Add Employee
@@ -173,10 +179,7 @@ export default function StaffPage() {
                       <td colSpan={5} className="py-12 text-center text-red-400 text-sm">
                         <div className="flex flex-col items-center gap-2">
                           <span>Failed to load employees.</span>
-                          <button
-                            onClick={() => refetch()}
-                            className="text-blue-500 hover:underline text-xs"
-                          >
+                          <button onClick={() => refetch()} className="text-blue-500 hover:underline text-xs">
                             Try again
                           </button>
                         </div>
@@ -192,54 +195,52 @@ export default function StaffPage() {
                     </tr>
                   )}
 
-                  {!isLoading && !isError && employees.map((emp) => {
-                    const id = emp._id ?? emp.id ?? "";
-                    const isDeleting = deletingId === id;
-                    return (
-                      <tr
-                        key={id}
-                        className={`border-b border-slate-50 hover:bg-slate-50 transition-colors ${isDeleting ? "opacity-40 pointer-events-none" : "cursor-pointer"}`}
-                        onClick={() => navigate(`/dashboard/staff/${id}/edit`)}
-                      >
-                        <td className="py-3 px-4 text-slate-700 font-medium whitespace-nowrap">
-                          {emp.fullName}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
-                          {emp.position ?? "—"}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 capitalize whitespace-nowrap">
-                          {emp.department ?? "—"}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`font-medium ${emp.status === "active" ? "text-green-500" : "text-slate-400"}`}>
-                            {emp.status ?? "Active"}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={(e) => handleDeleteClick(e, id, emp.fullName)}
-                            disabled={isDeleting}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Delete employee"
-                          >
-                            {isDeleting ? (
-                              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                              </svg>
-                            ) : (
-                              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                                <path d="M10 11v6M14 11v6" />
-                                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-                              </svg>
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {!isLoading &&
+                    !isError &&
+                    employees.map((emp) => {
+                      const id = emp._id ?? emp.id ?? "";
+                      const isDeleting = deletingId === id;
+                      return (
+                        <tr
+                          key={id}
+                          className={`border-b border-slate-50 hover:bg-slate-50 transition-colors ${
+                            isDeleting ? "opacity-40 pointer-events-none" : "cursor-pointer"
+                          }`}
+                          onClick={() => navigate(`/dashboard/staff/${id}/edit`)}
+                        >
+                          <td className="py-3 px-4 text-slate-700 font-medium whitespace-nowrap">{emp.fullName}</td>
+                          <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{emp.position ?? "—"}</td>
+                          <td className="py-3 px-4 text-slate-600 capitalize whitespace-nowrap">{emp.department ?? "—"}</td>
+                          <td className="py-3 px-4">
+                            <span className={`font-medium ${emp.status === "active" ? "text-green-500" : "text-slate-400"}`}>
+                              {emp.status ?? "Active"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={(e) => handleDeleteClick(e, id, emp.fullName)}
+                              disabled={isDeleting}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Delete employee"
+                            >
+                              {isDeleting ? (
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                </svg>
+                              ) : (
+                                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                                  <path d="M10 11v6M14 11v6" />
+                                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                                </svg>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -248,9 +249,13 @@ export default function StaffPage() {
           {/* Pagination */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 text-sm text-slate-500">
             <span>
-              {totalDocs === 0
-                ? "No results"
-                : <>Showing <strong>{from}–{to}</strong> from <strong>{totalDocs}</strong> employees</>}
+              {totalDocs === 0 ? (
+                "No results"
+              ) : (
+                <>
+                  Showing <strong>{from}–{to}</strong> from <strong>{totalDocs}</strong> employees
+                </>
+              )}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -299,9 +304,7 @@ export default function StaffPage() {
               <div className="bg-slate-800 rounded-xl p-4">
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">On Shift Now</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold">
-                    {employees.filter((e) => e.status === "active").length}
-                  </span>
+                  <span className="text-3xl font-bold">{employees.filter((e) => e.status === "active").length}</span>
                   <span className="text-2xl">⏱</span>
                 </div>
                 {totalDocs > 0 && (
@@ -317,9 +320,7 @@ export default function StaffPage() {
                       />
                     </div>
                     <p className="text-xs text-slate-400">
-                      {Math.round(
-                        (employees.filter((e) => e.status === "active").length / employees.length) * 100
-                      )}% of page active
+                      {Math.round((employees.filter((e) => e.status === "active").length / employees.length) * 100)}% of page active
                     </p>
                   </>
                 )}

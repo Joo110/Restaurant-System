@@ -1,4 +1,3 @@
-// src/components/layout/Topbar.tsx
 import { useState, useRef, useEffect } from "react";
 import { Bell, Calendar, ChevronDown, RefreshCw, User, Menu, Check, LogOut } from "lucide-react";
 import { useBranches } from "../branches/hook/useBranches";
@@ -20,7 +19,7 @@ export type ApiBranch = {
 
 export function getBranchId(branch: ApiBranch | undefined): string | undefined {
   if (!branch) return undefined;
-  if (branch.id)  return String(branch.id);
+  if (branch.id) return String(branch.id);
   if (branch._id) return String(branch._id);
   if (branch.branchId != null) return String(branch.branchId);
   return undefined;
@@ -38,15 +37,15 @@ function getAuthUser(): { role?: string; branchId?: string; name?: string } | nu
 }
 
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }) => {
-  const [dropdownOpen, setDropdownOpen]     = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<ApiBranch | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const navigate    = useNavigate();
+  const navigate = useNavigate();
 
   const { data } = useBranches();
 
   // ✅ اقرأ الـ role من الكوكيز — لو manager اخفي الـ branch dropdown
-  const authUser  = getAuthUser();
+  const authUser = getAuthUser();
   const isManager = authUser?.role === "manager";
 
   const apiBranches: ApiBranch[] = Array.isArray(data)
@@ -55,14 +54,8 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
     ? (data as any).data
     : [];
 
-  const SAMPLE_BRANCHES: ApiBranch[] = [
-    { _id: "1", name: "Downtown Branch"  },
-    { _id: "2", name: "Mansoura Branch"  },
-    { _id: "3", name: "Cairo Branch"     },
-    { _id: "4", name: "Alexandria Branch"},
-  ];
-
-  const branches: ApiBranch[] = apiBranches.length > 0 ? apiBranches : SAMPLE_BRANCHES;
+  // ✅ بدون داتا وهمية
+  const branches: ApiBranch[] = apiBranches;
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranch) {
@@ -92,13 +85,12 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
 
   const today = new Date().toLocaleDateString("en-US", {
     month: "short",
-    day:   "numeric",
-    year:  "numeric",
+    day: "numeric",
+    year: "numeric",
   });
 
   return (
     <header className="bg-white border-b border-gray-100 px-3 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-4 flex-shrink-0">
-
       {/* ── Left ── */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {onMenuClick && (
@@ -114,12 +106,16 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
           Store Overview
         </h1>
 
-        {/* ✅ Branch Dropdown — بتظهر بس للـ General Manager */}
+        {/* ✅ Branch Dropdown — بتظهر بس لو فيه branches حقيقية */}
         {!isManager && (
           <div ref={dropdownRef} className="hidden sm:block relative">
             <button
-              onClick={() => setDropdownOpen(o => !o)}
-              className="flex items-center gap-2 text-sm text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-blue-400 hover:text-blue-600 transition-all bg-white"
+              onClick={() => {
+                if (branches.length === 0) return;
+                setDropdownOpen((o) => !o);
+              }}
+              disabled={branches.length === 0}
+              className="flex items-center gap-2 text-sm text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-blue-400 hover:text-blue-600 transition-all bg-white disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <span>🏢</span>
               <span className="whitespace-nowrap max-w-[140px] truncate">
@@ -131,15 +127,18 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
               />
             </button>
 
-            {dropdownOpen && (
+            {dropdownOpen && branches.length > 0 && (
               <div className="absolute left-0 top-full mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                {branches.map(branch => {
-                  const key      = branch._id ?? branch.id ?? branch.name;
+                {branches.map((branch) => {
+                  const key = branch._id ?? branch.id ?? branch.name;
                   const isActive = selectedBranch?.name === branch.name;
                   return (
                     <button
                       key={key}
-                      onMouseDown={e => { e.preventDefault(); handleSelect(branch); }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelect(branch);
+                      }}
                       className={`w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors ${
                         isActive
                           ? "bg-blue-50 text-blue-700 font-medium"
@@ -156,7 +155,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
           </div>
         )}
 
-        {/* ✅ لو Manager — اعرض اسم البرانش بتاعته بس (read-only) */}
+        {/* ✅ لو Manager — اعرض بياناته بس */}
         {isManager && authUser?.name && (
           <span className="hidden sm:flex items-center gap-2 text-sm text-gray-500 border border-gray-100 rounded-lg px-3 py-1.5 bg-gray-50">
             <span>🏢</span>

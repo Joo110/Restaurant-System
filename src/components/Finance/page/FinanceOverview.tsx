@@ -1,318 +1,373 @@
-// src/components/Orders/EditOrder.tsx
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { getOrderByIdFn, updateOrderFn } from "../../Order/hook/useOrders";
-import { useItems } from "../../Menu/hook/useItems";
-import { invalidateQuery } from "../../../hook/queryClient";
+import React, { useMemo, useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { Download, AlertCircle, RefreshCw } from "lucide-react";
+import { useFinance } from "../../dashboard/hook/useAccounts";
 
-type LocalItem = {
-  id: string;
-  name: string;
-  qty: number;
-  unitPrice: number;
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const PIE_COLORS = ["#2563eb", "#60a5fa", "#e2e8f0"];
+
+const Spark: React.FC<{ color: string }> = ({ color }) => {
+  const d = Array.from({ length: 12 }, () => ({ v: Math.random() * 100 }));
+  return (
+    <ResponsiveContainer width="100%" height={44}>
+      <LineChart data={d}>
+        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
 };
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
-export default function EditOrder() {
-  const navigate = useNavigate();
-  const { id }   = useParams<{ id: string }>();
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-slate-800 text-white text-xs px-3 py-2 rounded-xl shadow-lg">
+      <p className="font-bold">${Number(payload[0].value || 0).toLocaleString()}</p>
+      <p className="text-slate-400">Month {label}</p>
+    </div>
+  );
+};
 
-  const [items,         setItems]         = useState<LocalItem[]>([]);
-  const [isLoading,     setIsLoading]     = useState(true);
-  const [isSubmitting,  setIsSubmitting]  = useState(false);
-  const [showAddItems,  setShowAddItems]  = useState(false);
-  const [addSearch,     setAddSearch]     = useState("");
-  const [error,         setError]         = useState<string | null>(null);
-  const [orderMeta,     setOrderMeta]     = useState<{
-    orderNumber?: string;
-    branch?: string;
-    orderType?: string;
-    status?: string;
-    subtotal?: number;
-    tax?: number;
-    total?: number;
-    createdBy?: string;
-    updatedBy?: string;
-    createdAt?: string;
-    updatedAt?: string;
-  }>({});
+export default function FinanceOverview() {
+  const [period, setPeriod] = useState<"Today" | "This Week" | "This Month">("This Month");
+  const [chartMode, setChartMode] = useState<"Monthly Revenue" | "Profit Analysis">("Monthly Revenue");
+  const [year, setYear] = useState<number>(new Date().getFullYear());
 
-  useEffect(() => {
-    if (!id) return;
-    setIsLoading(true);
-    getOrderByIdFn(id)
-      .then((res: any) => {
-        const order = res?.data ?? res;
+  const { data, isLoading, isError, error, refetch } = useFinance({ year });
 
-        setItems(
-          (order.items ?? []).map((i: any) => ({
-            id:        i.id       ?? "",
-            name:      i.name     ?? "",
-            qty:       i.quantity ?? 1,
-            unitPrice: i.price    ?? 0,
-          }))
-        );
+  // normalize response whether hook gives outer object or inner payload
+  const finance = useMemo(() => {
+    const maybeOuter = data as any;
+    return maybeOuter?.data ?? maybeOuter ?? null;
+  }, [data]);
 
-        setOrderMeta({
-          orderNumber: order.orderNumber,
-          branch:      order.branch,
-          orderType:   order.orderType,
-          status:      order.status,
-          subtotal:    order.subtotal,
-          tax:         order.tax,
-          total:       order.total,
-          createdBy:   order.createdBy,
-          updatedBy:   order.updatedBy,
-          createdAt:   order.createdAt,
-          updatedAt:   order.updatedAt,
-        });
-      })
-      .catch(() => setError("Failed to load order."))
-      .finally(() => setIsLoading(false));
-  }, [id]);
+  const chartData = (finance?.monthlyRevenue ?? []).map((m: any) => ({
+    day: MONTH_NAMES[m.month - 1] ?? String(m.month),
+    revenue: Number(m.revenue ?? 0),
+    profit: Number(m.revenue ?? 0) * 0.3,
+  }));
 
-  const { data: menuData } = useItems({ keyword: addSearch || undefined, limit: 30 });
-  const menuItems = (menuData?.data ?? []) as {
-    id?: string; _id?: string; name: string; price: number;
-  }[];
+  const chartKey = chartMode === "Monthly Revenue" ? "revenue" : "profit";
+  const chartColor = chartMode === "Monthly Revenue" ? "#2563eb" : "#10b981";
 
-  const updateQty = (itemId: string, delta: number) => {
-    setItems((prev) =>
-      prev.map((i) => i.id === itemId ? { ...i, qty: i.qty + delta } : i)
-          .filter((i) => i.qty > 0)
-    );
-  };
+  const totalRevenue = Number(finance?.summary?.totalRevenue ?? 0);
+  const totalExpenses = Number(finance?.summary?.totalExpenses ?? 0);
+  const netProfit = Number(finance?.summary?.netProfit ?? 0);
+  const payrollCurrentYear = Number(finance?.payrollSummary?.currentYear ?? 0);
+  const payrollNext = Number(finance?.payrollSummary?.nextPayroll ?? 0);
 
-  const addFromMenu = (menu: typeof menuItems[0]) => {
-    const mid = menu.id ?? menu._id ?? "";
-    setItems((prev) => {
-      const ex = prev.find((i) => i.id === mid);
-      if (ex) return prev.map((i) => i.id === mid ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { id: mid, name: menu.name, qty: 1, unitPrice: menu.price }];
-    });
-  };
+  const statCards = [
+    {
+      label: "Total Revenue",
+      value: `$${totalRevenue.toLocaleString()}`,
+      delta: finance?.summary?.totalRevenueChange ?? "0%",
+      up: !String(finance?.summary?.totalRevenueChange ?? "").startsWith("-"),
+      color: !String(finance?.summary?.totalRevenueChange ?? "").startsWith("-") ? "text-green-500" : "text-red-500",
+      miniColor: "#22c55e",
+    },
+    {
+      label: "Total Expenses",
+      value: `$${totalExpenses.toLocaleString()}`,
+      delta: "",
+      up: false,
+      color: "text-red-500",
+      miniColor: "#ef4444",
+    },
+    {
+      label: "Net Profit",
+      value: `$${netProfit.toLocaleString()}`,
+      delta: finance?.summary?.profitMargin ?? "",
+      up: netProfit >= 0,
+      color: netProfit >= 0 ? "text-green-500" : "text-red-500",
+      miniColor: netProfit >= 0 ? "#22c55e" : "#ef4444",
+    },
+    {
+      label: "Total Payroll",
+      value: `$${payrollCurrentYear.toLocaleString()}`,
+      delta: "",
+      up: true,
+      color: "text-green-500",
+      miniColor: "#ef4444",
+    },
+  ];
 
-  const handleUpdate = async () => {
-    if (!id) return;
-    setIsSubmitting(true);
-    try {
-      await updateOrderFn(id, {
-        items: items.map((i) => ({ itemId: i.id, quantity: i.qty })),
-      });
-      invalidateQuery("orders");
-      navigate("/dashboard/orders");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update order.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const expenseBreakdown = finance?.expenseBreakdown ?? [];
 
-  const statusColors: Record<string, string> = {
-    pending:            "bg-yellow-100 text-yellow-700",
-    "out-for-delivery": "bg-blue-100 text-blue-700",
-    delivered:          "bg-green-100 text-green-700",
-    cancelled:          "bg-red-100 text-red-700",
-    ready:              "bg-purple-100 text-purple-700",
-    completed:          "bg-green-100 text-green-700",
-  };
+  const orderTypeData = (finance?.revenueByType ?? []).map((t: any) => ({
+    name: t.type,
+    value: Number(t.revenue ?? 0),
+    amount: Number(t.revenue ?? 0),
+  }));
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-          </svg>
-          Loading order...
-        </div>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-slate-400 text-sm animate-pulse">Loading finance data...</p>
       </div>
     );
   }
 
-  if (error) {
+  if (isError && !data) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-3">
-        <p className="text-red-500 text-sm">{error}</p>
-        <button
-          onClick={() => navigate("/dashboard/orders")}
-          className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold"
-        >
-          Back to Orders
-        </button>
+      <div className="min-h-[40vh] flex items-center justify-center p-4">
+        <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm max-w-md w-full text-center">
+          <div className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-3">
+            <AlertCircle className="text-red-500" size={22} />
+          </div>
+          <h2 className="font-bold text-slate-900 mb-1">Failed to load finance data</h2>
+          <p className="text-sm text-slate-500 mb-4 break-words">
+            {(error as any)?.message ?? "Unknown error"}
+          </p>
+          <button
+            onClick={refetch}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+          >
+            <RefreshCw size={14} />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Financial</h1>
+          <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
+            Real-time performance across all restaurant branches
+          </p>
+        </div>
 
-        {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate("/dashboard/orders")}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-slate-700 text-sm mb-2 transition-colors"
+        <div className="flex items-center gap-2 flex-wrap">
+          {(["Today", "This Week", "This Month"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                period === p
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="px-3 py-2 rounded-xl text-xs border border-slate-200 text-slate-600 bg-white outline-none"
           >
-            ← Back
+            {[2024, 2025, 2026].map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+
+          <button className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors">
+            <Download size={13} /> Export
           </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            {orderMeta.orderNumber ?? `Order #${id?.slice(-4)}`}
-          </h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {orderMeta.branch && (
-              <span className="text-xs text-slate-400">📍 {orderMeta.branch}</span>
-            )}
-            {orderMeta.status && (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[orderMeta.status] ?? "bg-slate-100 text-slate-600"}`}>
-                {orderMeta.status.replace(/-/g, " ")}
-              </span>
-            )}
-            {orderMeta.orderType && (
-              <span className="text-xs text-slate-400 capitalize">· {orderMeta.orderType}</span>
-            )}
+        </div>
+      </div>
+
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        {statCards.map((card) => (
+          <div key={card.label} className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-4 shadow-sm">
+            <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">{card.label}</p>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <p className="text-base sm:text-xl font-bold text-slate-900">{card.value}</p>
+              {card.delta && (
+                <span className={`text-[10px] sm:text-xs font-semibold ${card.color}`}>
+                  {card.up ? "↑" : "↓"} {card.delta}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">Vs last month</p>
+            <div className="mt-1 opacity-70">
+              <Spark color={card.miniColor} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Revenue Chart */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-bold text-slate-900 text-sm sm:text-base">Revenue & Profit Trends</h2>
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Monthly performance breakdown</p>
+          </div>
+
+          <div className="flex gap-2">
+            {(["Monthly Revenue", "Profit Analysis"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setChartMode(m)}
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold transition-all ${
+                  chartMode === m ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="border-t border-slate-200 mb-6" />
+        {chartData.length === 0 ? (
+          <p className="text-xs text-slate-300 text-center py-12">No revenue data for this year</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`}
+                width={45}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey={chartKey}
+                stroke={chartColor}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, fill: chartColor, stroke: "#fff", strokeWidth: 2 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Expense Breakdown */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
+          <h2 className="font-bold text-slate-900 text-sm sm:text-base">Expense Breakdown</h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 mb-4">Operational cost distribution</p>
 
-          {/* ══ LEFT — Items ══ */}
-          <div className="flex-1 min-w-0">
-            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
-              <div className="space-y-4">
-                {items.length === 0 && (
-                  <p className="text-center text-slate-400 text-sm py-6">No items. Add some below.</p>
-                )}
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 sm:gap-4 py-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2 border border-slate-200 rounded-xl px-2 py-1.5 shrink-0">
-                      <button
-                        onClick={() => updateQty(item.id, -1)}
-                        className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-500 font-bold transition-colors"
-                      >−</button>
-                      <span className="w-5 text-center font-bold text-slate-800 text-sm">{item.qty}</span>
-                      <button
-                        onClick={() => updateQty(item.id, 1)}
-                        className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-blue-500 font-bold transition-colors"
-                      >+</button>
+          {expenseBreakdown.length === 0 ? (
+            <p className="text-xs text-slate-300 text-center py-8">No expense data</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[260px]">
+                <thead>
+                  <tr className="text-[11px] sm:text-xs text-slate-400 border-b border-slate-100">
+                    <th className="pb-2 text-left font-medium">Category</th>
+                    <th className="pb-2 text-center font-medium">%</th>
+                    <th className="pb-2 text-right font-medium">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenseBreakdown.map((row: any) => (
+                    <tr key={row.category} className="border-b border-slate-50 last:border-0">
+                      <td className="py-2 sm:py-2.5 text-xs sm:text-sm text-slate-700">{row.category}</td>
+                      <td className="py-2 sm:py-2.5 text-center">
+                        <span className="text-[10px] sm:text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                          {row.percentage}%
+                        </span>
+                      </td>
+                      <td className="py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-900 text-right">
+                        ${Number(row.amount ?? 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Revenue by Order Type */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
+          <h2 className="font-bold text-slate-900 text-sm sm:text-base">Revenue by Order Type</h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 mb-2">Channel performance distribution</p>
+
+          {orderTypeData.length === 0 ? (
+            <p className="text-xs text-slate-300 text-center py-12">No data</p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={orderTypeData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={70}
+                    dataKey="value"
+                    startAngle={90}
+                    endAngle={-270}
+                  >
+                    {orderTypeData.map((entry: any, idx: number) => (
+                      <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => `$${Number(v).toLocaleString()}`} />
+                </PieChart>
+              </ResponsiveContainer>
+
+              <div className="w-full space-y-2 mt-2">
+                {orderTypeData.map((item: any, idx: number) => (
+                  <div key={item.name} className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0"
+                        style={{ background: PIE_COLORS[idx % PIE_COLORS.length] }}
+                      />
+                      <span className="text-slate-600 capitalize">{item.name}</span>
                     </div>
-                    <span className="flex-1 text-slate-700 font-medium text-sm sm:text-base truncate">{item.name}</span>
-                    <span className="text-blue-500 font-bold text-sm sm:text-base shrink-0">
-                      ${(item.unitPrice * item.qty).toFixed(2)}
-                    </span>
+                    <span className="font-semibold text-slate-900">${Number(item.amount ?? 0).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
+            </>
+          )}
+        </div>
+      </div>
 
-              <button
-                onClick={() => setShowAddItems((v) => !v)}
-                className="mt-4 w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-slate-400 text-sm font-medium hover:border-blue-300 hover:text-blue-500 transition-all flex items-center justify-center gap-2"
-              >
-                <span className="text-lg">{showAddItems ? "−" : "⊕"}</span>
-                {showAddItems ? "Hide menu" : "Add More Items"}
-              </button>
+      {/* Payroll Summary */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-blue-600 text-base sm:text-lg">💰</span>
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-900 text-sm sm:text-base">Payroll Summary</h2>
+            <p className="text-[11px] sm:text-xs text-slate-400">Year: {year}</p>
+          </div>
+        </div>
 
-              {showAddItems && (
-                <div className="mt-4 border border-slate-100 rounded-xl p-3">
-                  <input
-                    type="text"
-                    placeholder="Search items..."
-                    value={addSearch}
-                    onChange={(e) => setAddSearch(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
-                  />
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {menuItems.map((m) => (
-                      <button
-                        key={m.id ?? m._id}
-                        onClick={() => addFromMenu(m)}
-                        className="text-left p-2.5 rounded-lg border border-slate-100 hover:border-blue-300 hover:bg-blue-50 transition-all"
-                      >
-                        <p className="text-sm font-semibold text-slate-700 truncate">{m.name}</p>
-                        <p className="text-xs text-blue-500 font-bold mt-0.5">${m.price}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {(orderMeta.createdAt || orderMeta.updatedAt) && (
-              <div className="mt-4 flex gap-4 flex-wrap">
-                {orderMeta.createdAt && (
-                  <p className="text-xs text-slate-400">
-                    Created: {new Date(orderMeta.createdAt).toLocaleString()}
-                  </p>
-                )}
-                {orderMeta.updatedAt && (
-                  <p className="text-xs text-slate-400">
-                    Updated: {new Date(orderMeta.updatedAt).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            )}
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+          <div className="border border-slate-100 rounded-xl p-2.5 sm:p-3">
+            <p className="text-[10px] sm:text-xs text-slate-400">Total Payroll</p>
+            <p className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">
+              ${payrollCurrentYear.toLocaleString()}
+            </p>
           </div>
 
-          {/* ══ RIGHT — Summary ══ */}
-          <div className="w-full lg:w-64 bg-slate-900 rounded-2xl p-5 text-white flex flex-col gap-4 h-fit lg:sticky lg:top-6">
-            <h2 className="text-lg font-bold">Order Summary</h2>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-slate-400">
-                <span>Subtotal</span>
-                <span>${orderMeta.subtotal?.toFixed(2) ?? "—"}</span>
-              </div>
-              <div className="flex justify-between text-sm text-slate-400">
-                <span>Tax</span>
-                <span>${orderMeta.tax?.toFixed(2) ?? "—"}</span>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-700 pt-3">
-              <div className="flex justify-between font-bold text-base">
-                <span>Total</span>
-                <span className="text-blue-400 text-xl">${orderMeta.total?.toFixed(2) ?? "—"}</span>
-              </div>
-            </div>
-
-            {(orderMeta.createdBy || orderMeta.updatedBy) && (
-              <div className="border-t border-slate-700 pt-3 space-y-1">
-                {orderMeta.createdBy && (
-                  <p className="text-xs text-slate-500">Created by: <span className="text-slate-300">{orderMeta.createdBy}</span></p>
-                )}
-                {orderMeta.updatedBy && (
-                  <p className="text-xs text-slate-500">Updated by: <span className="text-slate-300">{orderMeta.updatedBy}</span></p>
-                )}
-              </div>
-            )}
-
-            <div className="mt-auto flex flex-col gap-2 pt-2">
-              <button
-                onClick={() => navigate("/dashboard/orders")}
-                className="w-full py-3 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdate}
-                disabled={isSubmitting || items.length === 0}
-                className="w-full py-3 rounded-xl bg-blue-500 text-sm font-bold hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                    Updating...
-                  </>
-                ) : "Update Order"}
-              </button>
-            </div>
+          <div className="border border-slate-100 rounded-xl p-2.5 sm:p-3">
+            <p className="text-[10px] sm:text-xs text-slate-400">Next Payroll</p>
+            <p className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">
+              ${payrollNext.toLocaleString()}
+            </p>
           </div>
         </div>
       </div>

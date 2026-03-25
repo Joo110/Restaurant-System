@@ -147,8 +147,15 @@ export const getExecutive = async (params?: Pick<AccountsQueryParams, 'branchId'
 /**
  * GET /api/v1/accounts/finance
  */
-export const getFinance = async (params?: Pick<AccountsQueryParams, 'branchId' | 'year'>): Promise<FinanceResponse> => {
-  const res = await api.get('/accounts/finance', { params });
+export const getFinance = async (
+  params?: Pick<AccountsQueryParams, "branchId" | "year">,
+  signal?: AbortSignal
+): Promise<FinanceResponse> => {
+  const res = await api.get<FinanceResponse>("/accounts/finance", {
+    params,
+    signal,
+  });
+
   return res.data;
 };
 
