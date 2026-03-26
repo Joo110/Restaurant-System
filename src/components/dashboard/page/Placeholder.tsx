@@ -1,11 +1,14 @@
 // src/components/dashboard/page/Placeholder.tsx
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface PlaceholderProps {
   name: string;
 }
 
 const Placeholder: React.FC<PlaceholderProps> = ({ name }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center justify-center min-h-[40vh] sm:h-64 px-4">
       <div className="text-center">
@@ -14,7 +17,7 @@ const Placeholder: React.FC<PlaceholderProps> = ({ name }) => {
           {name}
         </h2>
         <p className="text-xs sm:text-sm text-gray-300 mt-2">
-          This page is under construction
+          {t("dashboard.placeholder.underConstruction")}
         </p>
       </div>
     </div>

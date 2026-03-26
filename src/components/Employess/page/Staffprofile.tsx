@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ActivityItem {
   icon: string;
@@ -31,6 +32,8 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
 }
 
 export default function StaffProfile() {
+  const { t } = useTranslation();
+
   const [firstName, setFirstName] = useState("Mohamed");
   const [lastName, setLastName] = useState("Morsy");
   const [lastNameExtra, setLastNameExtra] = useState("Johnson");
@@ -43,37 +46,37 @@ export default function StaffProfile() {
     {
       icon: "📋",
       color: "bg-purple-100",
-      title: "Updated menu pricing",
-      description: "Increased prices for breakfast items by 5% to adjust for inflation.",
-      time: "Today, 10:42 AM",
+      title: t("updatedMenuPricing"),
+      description: t("increasedBreakfastPricesBy5Percent"),
+      time: t("todayAt1042AM"),
     },
     {
       icon: "📦",
       color: "bg-blue-100",
-      title: "Approved inventory restock",
-      description: "Order #8821 approved for monthly dairy and vegetable supply.",
-      time: "Yesterday, 4:15 PM",
+      title: t("approvedInventoryRestock"),
+      description: t("order8821ApprovedForMonthlyDairyAndVegetableSupply"),
+      time: t("yesterdayAt415PM"),
     },
     {
       icon: "⚠️",
       color: "bg-yellow-100",
-      title: "Kitchen Team Shift Update",
-      description: "Reassigned 2 chefs to the evening shift for the upcoming holiday rush.",
-      time: "Nov 12, 2:30 PM",
+      title: t("kitchenTeamShiftUpdate"),
+      description: t("reassigned2ChefsToEveningShift"),
+      time: t("nov12At230PM"),
     },
     {
       icon: "🔐",
       color: "bg-green-100",
-      title: "Logged in from a new device",
-      description: "Successful login detected from MacBook Pro (San Francisco, CA). IP: 192.168.1.45",
-      time: "Nov 10, 10:15 AM",
+      title: t("loggedInFromNewDevice"),
+      description: t("successfulLoginDetectedFromMacBookPro"),
+      time: t("nov10At1015AM"),
     },
   ];
 
   const devices: DeviceItem[] = [
-    { icon: "💻", name: "MacBook Pro 16\"", type: "Active now", location: "Mansoura, EG", lastActive: "Just now", isActive: true },
-    { icon: "📱", name: "iPhone 14 Pro", type: "Mobile App", location: "Cairo, EG", lastActive: "Just now" },
-    { icon: "💻", name: "MacBook Pro 16\"", type: "Active now", location: "Mit Ghamr, EG", lastActive: "Just now", isActive: true },
+    { icon: "💻", name: "MacBook Pro 16\"", type: t("activeNow"), location: t("mansouraEg"), lastActive: t("justNow"), isActive: true },
+    { icon: "📱", name: "iPhone 14 Pro", type: t("mobileApp"), location: t("cairoEg"), lastActive: t("justNow") },
+    { icon: "💻", name: "MacBook Pro 16\"", type: t("activeNow"), location: t("mitGhamrEg"), lastActive: t("justNow"), isActive: true },
   ];
 
   const handleSave = () => {
@@ -85,7 +88,7 @@ export default function StaffProfile() {
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* Breadcrumb */}
       <div className="px-8 pt-4 text-xs text-gray-400">
-        <span>Home</span> / <span>Staff</span> / <span className="text-gray-700 font-medium">Profile</span>
+        <span>{t("home")}</span> / <span>{t("staff")}</span> / <span className="text-gray-700 font-medium">{t("profile")}</span>
       </div>
 
       <div className="max-w-4xl mx-auto px-8 py-6 flex gap-6">
@@ -98,34 +101,34 @@ export default function StaffProfile() {
                 <span className="text-2xl">👤</span>
               </div>
               <p className="font-bold text-gray-900 text-sm mt-2 text-center">Ahmed Ali</p>
-              <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1">Branch Manager</span>
+              <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1">{t("branchManager")}</span>
 
               <div className="mt-4 space-y-2 w-full text-[11px]">
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <span>🏢</span>
                   <div>
-                    <p className="text-gray-400 text-[10px]">Branch Name</p>
-                    <p className="font-medium text-gray-700">Nasr City</p>
+                    <p className="text-gray-400 text-[10px]">{t("branchName")}</p>
+                    <p className="font-medium text-gray-700">{t("nasrCity")}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <span>📅</span>
                   <div>
-                    <p className="text-gray-400 text-[10px]">Branch Tenure</p>
-                    <p className="font-medium text-gray-700">2.5 Years</p>
+                    <p className="text-gray-400 text-[10px]">{t("branchTenure")}</p>
+                    <p className="font-medium text-gray-700">{t("twoAndHalfYears")}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <span>✉️</span>
                   <div>
-                    <p className="text-gray-400 text-[10px]">Work Email</p>
+                    <p className="text-gray-400 text-[10px]">{t("workEmail")}</p>
                     <p className="font-medium text-gray-700 text-[10px]">ahmed.ali@rest.com</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <span>📞</span>
                   <div>
-                    <p className="text-gray-400 text-[10px]">Direct Line</p>
+                    <p className="text-gray-400 text-[10px]">{t("directLine")}</p>
                     <p className="font-medium text-gray-700">+(20) 255214555</p>
                   </div>
                 </div>
@@ -140,21 +143,21 @@ export default function StaffProfile() {
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h2 className="font-bold text-gray-900">Personal Information</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Updates your personal details and contact information.</p>
+                <h2 className="font-bold text-gray-900">{t("personalInformation")}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{t("updatesPersonalDetailsAndContactInformation")}</p>
               </div>
               <button
                 onClick={handleSave}
                 className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded-xl transition-all ${saved ? "bg-green-500" : "bg-blue-600 hover:bg-blue-700"}`}
               >
                 <span>{saved ? "✓" : "💾"}</span>
-                {saved ? "Saved!" : "Save Changes"}
+                {saved ? t("saved") : t("saveChanges")}
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">First Name</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">{t("firstName")}</label>
                 <input
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -162,7 +165,7 @@ export default function StaffProfile() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Last Name</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">{t("lastName")}</label>
                 <input
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -171,7 +174,7 @@ export default function StaffProfile() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  Email Address <span className="text-gray-300">Read Only</span>
+                  {t("emailAddress")} <span className="text-gray-300">{t("readOnly")}</span>
                 </label>
                 <input
                   value="morsy44@dgrest.com"
@@ -180,7 +183,7 @@ export default function StaffProfile() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Last Name</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">{t("lastName")}</label>
                 <input
                   value={lastNameExtra}
                   onChange={(e) => setLastNameExtra(e.target.value)}
@@ -192,12 +195,12 @@ export default function StaffProfile() {
 
           {/* Notifications */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">Notifications</h2>
+            <h2 className="font-bold text-gray-900 mb-4">{t("notifications")}</h2>
             <div className="space-y-3">
               {[
-                { label: "Low Inventory Alerts", desc: "Critical updates when stock levels fall below threshold", state: lowInventory, toggle: () => setLowInventory(!lowInventory) },
-                { label: "Staff Alerts", desc: "Notify when staff check-in", state: staffAlerts, toggle: () => setStaffAlerts(!staffAlerts) },
-                { label: "System Alerts", desc: "Critical about inventory levels and staff", state: systemAlerts, toggle: () => setSystemAlerts(!systemAlerts) },
+                { label: t("lowInventoryAlerts"), desc: t("criticalUpdatesWhenStockLevelsFallBelowThreshold"), state: lowInventory, toggle: () => setLowInventory(!lowInventory) },
+                { label: t("staffAlerts"), desc: t("notifyWhenStaffCheckIn"), state: staffAlerts, toggle: () => setStaffAlerts(!staffAlerts) },
+                { label: t("systemAlerts"), desc: t("criticalAboutInventoryLevelsAndStaff"), state: systemAlerts, toggle: () => setSystemAlerts(!systemAlerts) },
               ].map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div>
@@ -212,8 +215,8 @@ export default function StaffProfile() {
 
           {/* Recent Activity */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-1">Recent Activity</h2>
-            <p className="text-xs text-gray-400 mb-4">Track your branch - specific actions and system changes.</p>
+            <h2 className="font-bold text-gray-900 mb-1">{t("recentActivity")}</h2>
+            <p className="text-xs text-gray-400 mb-4">{t("trackBranchSpecificActionsAndSystemChanges")}</p>
             <div className="space-y-3">
               {activities.map((act, i) => (
                 <div key={i} className="flex gap-3 items-start">
@@ -234,27 +237,27 @@ export default function StaffProfile() {
 
           {/* Security */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">Security</h2>
+            <h2 className="font-bold text-gray-900 mb-4">{t("security")}</h2>
             <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 mb-5">
               <div>
-                <p className="text-sm font-medium text-gray-800">Change Password</p>
-                <p className="text-xs text-gray-400 mt-0.5">Last changed 3 months ago</p>
+                <p className="text-sm font-medium text-gray-800">{t("changePassword")}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t("lastChanged3MonthsAgo")}</p>
               </div>
               <button className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors">
-                Update
+                {t("update")}
               </button>
             </div>
 
             {/* Logged-in Devices */}
-            <h3 className="font-semibold text-gray-800 text-sm mb-3">Logged-In Devices</h3>
+            <h3 className="font-semibold text-gray-800 text-sm mb-3">{t("loggedInDevices")}</h3>
             <div className="rounded-xl border border-gray-100 overflow-hidden">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr className="text-gray-400 uppercase tracking-wide text-[10px]">
-                    <th className="text-left px-4 py-2.5 font-semibold">Device</th>
-                    <th className="text-left px-4 py-2.5 font-semibold">Location</th>
-                    <th className="text-left px-4 py-2.5 font-semibold">Last Active</th>
-                    <th className="text-left px-4 py-2.5 font-semibold">Action</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">{t("device")}</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">{t("location")}</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">{t("lastActive")}</th>
+                    <th className="text-left px-4 py-2.5 font-semibold">{t("action")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -276,7 +279,7 @@ export default function StaffProfile() {
                       <td className="px-4 py-3 text-gray-500">{device.lastActive}</td>
                       <td className="px-4 py-3">
                         <button className="text-red-500 font-medium hover:text-red-600 transition-colors">
-                          Logout
+                          {t("logout")}
                         </button>
                       </td>
                     </tr>

@@ -1,5 +1,6 @@
 // src/components/dashboard/page/TopDishes.tsx
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface Dish {
   name: string;
@@ -22,21 +23,23 @@ const categoryEmoji: Record<string, string> = {
 };
 
 const TopDishes: React.FC<TopDishesProps> = ({ dishes }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">
-        Top selling dishes
+        {t("dashboard.topDishes.title")}
       </h2>
 
       {/* Header Row */}
       <div className="grid grid-cols-[1fr_60px_70px] text-xs px-2 mb-2">
-        <span className="text-blue-600 font-semibold">Dish Name</span>
-        <span className="text-center text-gray-400">Orders</span>
-        <span className="text-right text-emerald-600 font-semibold">Revenue</span>
+        <span className="text-blue-600 font-semibold">{t("dashboard.topDishes.dishName")}</span>
+        <span className="text-center text-gray-400">{t("dashboard.topDishes.orders")}</span>
+        <span className="text-right text-emerald-600 font-semibold">{t("dashboard.topDishes.revenue")}</span>
       </div>
 
       {dishes.length === 0 ? (
-        <p className="text-xs text-gray-300 text-center py-8">No dishes yet</p>
+        <p className="text-xs text-gray-300 text-center py-8">{t("dashboard.topDishes.empty")}</p>
       ) : (
         <div className="flex flex-col gap-0.5">
           {dishes.map((dish, i) => (

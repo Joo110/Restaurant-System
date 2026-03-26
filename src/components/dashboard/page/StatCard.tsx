@@ -1,5 +1,6 @@
 // src/components/dashboard/page/StatCard.tsx
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 interface StatCardProps {
@@ -19,6 +20,7 @@ const StatCard: React.FC<StatCardProps> = ({
   bar,
   barColor,
 }) => {
+  const { t } = useTranslation();
   const isPositive = parseFloat(change) >= 0;
 
   return (
@@ -54,11 +56,11 @@ const StatCard: React.FC<StatCardProps> = ({
       )}
 
       <p className="text-[10px] text-gray-300 mb-3 mt-2">
-        Relative to yesterday
+        {t("dashboard.statCards.relativeToYesterday")}
       </p>
 
       <button className="text-xs text-blue-600 flex items-center gap-1 hover:gap-2 transition-all font-semibold group">
-        View Details{" "}
+        {t("dashboard.statCards.viewDetails")}{" "}
         <ArrowRight
           size={12}
           className="group-hover:translate-x-0.5 transition-transform"

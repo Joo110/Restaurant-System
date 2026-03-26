@@ -1,16 +1,17 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface MenuItem {
   id: number;
-  name: string;
-  description: string;
+  nameKey: string;
+  descriptionKey: string;
   price: number;
   image: string;
 }
 
 interface BasketItem {
   id: number;
-  name: string;
+  nameKey: string;
   quantity: number;
   price: number;
   note: string;
@@ -28,26 +29,28 @@ interface OrdersManagementDeliveryProps {
 
 const menuItems: MenuItem[] = Array.from({ length: 30 }, (_, i) => ({
   id: i + 1,
-  name: i % 3 === 0 ? "Caesar Salad" : i % 3 === 1 ? "Classic Burger" : "Truffle Fries",
-  description:
+  nameKey: i % 3 === 0 ? "caesarSalad" : i % 3 === 1 ? "classicBurger" : "truffleFries",
+  descriptionKey:
     i % 3 === 0
-      ? "chopped romaine lettuce and garlicky croutons, tossed in a creamy dressing made with eggs"
+      ? "caesarSaladDescription"
       : i % 3 === 1
-      ? "beef patty with cheese, lettuce, tomato and special sauce"
-      : "crispy fries with truffle oil and parmesan cheese",
+      ? "classicBurgerDescription"
+      : "truffleFriesDescription",
   price: i % 3 === 0 ? 12 : i % 3 === 1 ? 24 : 18,
   image: "🥗",
 }));
 
-const tabs = ["All Orders", "Take away", "Tables", "Delivery", "Drinks"];
+const tabs = ["allOrders", "takeAway", "tables", "delivery", "drinks"];
 
 export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersManagementDeliveryProps) {
-  const [activeTab, setActiveTab] = useState("Delivery");
+  const { t } = useTranslation();
+
+  const [activeTab, setActiveTab] = useState("delivery");
   const [search, setSearch] = useState("");
-  const [basket, setBasket] = useState<BasketItem[]>([
-    { id: 1, name: "Classic Cheeseburger", quantity: 2, price: 24, note: "" },
-    { id: 2, name: "Classic Cheeseburger", quantity: 2, price: 24, note: "" },
-    { id: 3, name: "Classic Cheeseburger", quantity: 2, price: 24, note: "" },
+  const [basket, setBasket] = useState<BasketItem[]>(() => [
+    { id: 1, nameKey: "classicCheeseburger", quantity: 2, price: 24, note: "" },
+    { id: 2, nameKey: "classicCheeseburger", quantity: 2, price: 24, note: "" },
+    { id: 3, nameKey: "classicCheeseburger", quantity: 2, price: 24, note: "" },
   ]);
   const [customer, setCustomer] = useState("");
   const [phone, setPhone] = useState("");
@@ -60,50 +63,47 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
   const total = subtotal + tax + deliveryFee;
 
   const addToBasket = (item: MenuItem) => {
-    setBasket((prev) => {
-      const existing = prev.find((b) => b.name === item.name);
+    setBasket(prev => {
+      const existing = prev.find(b => b.nameKey === item.nameKey);
       if (existing) {
-        return prev.map((b) => (b.name === item.name ? { ...b, quantity: b.quantity + 1 } : b));
+        return prev.map(b => (b.nameKey === item.nameKey ? { ...b, quantity: b.quantity + 1 } : b));
       }
-      return [...prev, { id: Date.now(), name: item.name, quantity: 1, price: item.price, note: "" }];
+      return [...prev, { id: Date.now(), nameKey: item.nameKey, quantity: 1, price: item.price, note: "" }];
     });
   };
 
   const updateQty = (id: number, delta: number) => {
-    setBasket((prev) =>
+    setBasket(prev =>
       prev
-        .map((b) => (b.id === id ? { ...b, quantity: b.quantity + delta } : b))
-        .filter((b) => b.quantity > 0)
+        .map(b => (b.id === id ? { ...b, quantity: b.quantity + delta } : b))
+        .filter(b => b.quantity > 0)
     );
   };
 
   const updateNote = (id: number, note: string) => {
-    setBasket((prev) => prev.map((b) => (b.id === id ? { ...b, note } : b)));
+    setBasket(prev => prev.map(b => (b.id === id ? { ...b, note } : b)));
   };
 
   const filtered = menuItems.filter(
-    (item) =>
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.description.toLowerCase().includes(search.toLowerCase())
+    item =>
+      t(item.nameKey).toLowerCase().includes(search.toLowerCase()) ||
+      t(item.descriptionKey).toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col lg:flex-row">
-      {/* Left: Menu */}
       <div className="flex-1 p-4 sm:p-6">
-        {/* Header */}
         <div className="mb-5">
-          <h1 className="text-xl font-bold text-gray-900">Orders Management</h1>
-          <p className="text-sm text-gray-500">Mansoura Branch</p>
+          <h1 className="text-xl font-bold text-gray-900">{t("ordersManagement")}</h1>
+          <p className="text-sm text-gray-500">{t("mansouraBranch")}</p>
         </div>
 
-        {/* Search */}
         <div className="relative mb-4">
           <input
             type="text"
-            placeholder="Search by Order ID, Table, or Item...."
+            placeholder={t("searchByOrderIdTableOrItem")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           />
           <svg className="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,9 +111,8 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
           </svg>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -123,14 +122,13 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
-              {tab}
+              {t(tab)}
             </button>
           ))}
         </div>
 
-        {/* Menu Grid */}
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filtered.map((item) => (
+          {filtered.map(item => (
             <button
               key={item.id}
               onClick={() => addToBasket(item)}
@@ -139,63 +137,59 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
               <div className="w-full aspect-square bg-gray-100 rounded-xl flex items-center justify-center text-3xl mb-2 group-hover:bg-blue-50 transition">
                 {item.image}
               </div>
-              <p className="text-xs font-bold text-gray-800 truncate">{item.name}</p>
-              <p className="text-xs text-gray-400 line-clamp-2 mt-0.5 leading-tight">{item.description}</p>
+              <p className="text-xs font-bold text-gray-800 truncate">{t(item.nameKey)}</p>
+              <p className="text-xs text-gray-400 line-clamp-2 mt-0.5 leading-tight">{t(item.descriptionKey)}</p>
               <p className="text-xs font-bold text-blue-600 mt-1">${item.price}</p>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Right: Order Panel */}
       <div className="w-full lg:w-80 xl:w-96 bg-gray-900 text-white flex flex-col lg:min-h-screen">
         <div className="p-5 flex-1 overflow-y-auto">
-          {/* Customer Details */}
           <div className="mb-5">
-            <h3 className="text-base font-bold text-white mb-3">Customer Details</h3>
+            <h3 className="text-base font-bold text-white mb-3">{t("customerDetails")}</h3>
             <div className="space-y-2.5">
               <input
                 type="text"
-                placeholder="Customer Name"
+                placeholder={t("customerName")}
                 value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
+                onChange={e => setCustomer(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
                 type="tel"
-                placeholder="Phone Number"
+                placeholder={t("phoneNumber")}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={e => setPhone(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
                 type="text"
-                placeholder="Delivery Address"
+                placeholder={t("deliveryAddress")}
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={e => setAddress(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <textarea
-                placeholder="Order Notes"
+                placeholder={t("orderNotes")}
                 value={orderNotes}
-                onChange={(e) => setOrderNotes(e.target.value)}
+                onChange={e => setOrderNotes(e.target.value)}
                 rows={3}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
           </div>
 
-          {/* Order Basket */}
           <div>
-            <h3 className="text-base font-bold text-white mb-3">Order Basket</h3>
+            <h3 className="text-base font-bold text-white mb-3">{t("orderBasket")}</h3>
             {basket.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-6">No items added yet</p>
+              <p className="text-gray-500 text-sm text-center py-6">{t("noItemsAddedYet")}</p>
             ) : (
               <div className="space-y-3">
-                {basket.map((item) => (
+                {basket.map(item => (
                   <div key={item.id} className="bg-gray-800 rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      {/* Qty Controls */}
                       <div className="flex flex-col items-center gap-0.5">
                         <button
                           onClick={() => updateQty(item.id, 1)}
@@ -217,16 +211,16 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-semibold text-white">{item.name}</span>
+                          <span className="text-sm font-semibold text-white">{t(item.nameKey)}</span>
                           <span className="text-sm font-bold text-white">${item.price}</span>
                         </div>
                       </div>
                     </div>
                     <input
                       type="text"
-                      placeholder="Add note...."
+                      placeholder={t("addNotePlaceholder")}
                       value={item.note}
-                      onChange={(e) => updateNote(item.id, e.target.value)}
+                      onChange={e => updateNote(item.id, e.target.value)}
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -236,21 +230,20 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
           </div>
         </div>
 
-        {/* Summary + Actions */}
         <div className="p-5 border-t border-gray-700">
           <div className="space-y-1.5 mb-4">
             {[
-              { label: "Subtotal", value: `$${subtotal.toFixed(2)}` },
-              { label: "Tax", value: `$${tax.toFixed(2)}` },
-              { label: "Delivery Fee", value: `$${deliveryFee.toFixed(2)}` },
-            ].map((row) => (
+              { label: t("subtotal"), value: `$${subtotal.toFixed(2)}` },
+              { label: t("tax"), value: `$${tax.toFixed(2)}` },
+              { label: t("deliveryFee"), value: `$${deliveryFee.toFixed(2)}` },
+            ].map(row => (
               <div key={row.label} className="flex justify-between text-sm text-gray-400">
                 <span>{row.label}</span>
                 <span>{row.value}</span>
               </div>
             ))}
             <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-gray-700">
-              <span>Total</span>
+              <span>{t("total")}</span>
               <span>${total.toFixed(0)}</span>
             </div>
           </div>
@@ -265,7 +258,7 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
               }}
               className="flex-1 border border-gray-600 text-gray-300 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-800 transition"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               onClick={() =>
@@ -273,7 +266,7 @@ export default function OrdersManagementDelivery({ onConfirmDispatch }: OrdersMa
               }
               className="flex-1 bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 transition"
             >
-              Confirm & Dispatch
+              {t("confirmAndDispatch")}
             </button>
           </div>
         </div>

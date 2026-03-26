@@ -1,5 +1,5 @@
-// src/components/Staff/page/EditAttendanceModal.tsx
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { updateAttendanceFn } from "../../Attendance/hooks/Useattendance";
 import { invalidateQuery } from "../../../hook/queryClient";
 import type { Attendance } from "../../Attendance/services/Attendanceservice";
@@ -42,35 +42,42 @@ const inputCls = (hasError = false) =>
 
 /* ─────────────────────────────────────────────────────── */
 export default function EditAttendanceModal({ record, onClose }: Props) {
+  const { t, i18n } = useTranslation();
   const id = record._id ?? record.id ?? "";
-  const empName = (record as any).employee?.fullName ?? (record as any).employeeName ?? "Employee";
+  const empName = (record as any).employee?.fullName ?? (record as any).employeeName ?? t("employee");
 
-  const [form, setForm]               = useState<FormFields>({ checkIn: "", checkOut: "", status: "", notes: "" });
-  const [isLoading, setIsLoading]     = useState(false);
+  const [form, setForm] = useState<FormFields>({ checkIn: "", checkOut: "", status: "", notes: "" });
+  const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [success, setSuccess]         = useState(false);
+  const [success, setSuccess] = useState(false);
   const [statusError, setStatusError] = useState("");
 
   /* Pre-fill from record */
   useEffect(() => {
     setForm({
-      checkIn:  record.checkIn  ?? "",
+      checkIn: record.checkIn ?? "",
       checkOut: record.checkOut ?? "",
-      status:   record.status   ?? "present",
-      notes:    record.notes    ?? "",
+      status: record.status ?? "present",
+      notes: record.notes ?? "",
     });
   }, [record]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (name === "status" && !value) setStatusError("Status is required.");
+    if (name === "status" && !value) setStatusError(t("statusIsRequired"));
     else if (name === "status") setStatusError("");
   };
 
   const handleSubmit = async () => {
-    if (!form.status) { setStatusError("Status is required."); return; }
-    if (!id) { setGeneralError("Missing record ID."); return; }
+    if (!form.status) {
+      setStatusError(t("statusIsRequired"));
+      return;
+    }
+    if (!id) {
+      setGeneralError(t("missingRecordId"));
+      return;
+    }
 
     setGeneralError(null);
     setIsLoading(true);
@@ -79,36 +86,47 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
       const recDate = record.date ? record.date.split("T")[0] : new Date().toISOString().split("T")[0];
 
       await updateAttendanceFn(id, {
-        checkIn:  form.checkIn  ? toISODateTime(recDate, form.checkIn)  : undefined,
+        checkIn: form.checkIn ? toISODateTime(recDate, form.checkIn) : undefined,
         checkOut: form.checkOut ? toISODateTime(recDate, form.checkOut) : undefined,
-        status:   form.status,
-        notes:    form.notes    || undefined,
+        status: form.status,
+        notes: form.notes || undefined,
       });
       invalidateQuery("attendance");
       setSuccess(true);
       setTimeout(() => onClose(), 1200);
     } catch (err: any) {
-      const msg = err?.response?.data?.message ?? err?.message ?? "Something went wrong.";
+      const msg = err?.response?.data?.message ?? err?.message ?? t("somethingWentWrong");
       setGeneralError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const options = [
+    { value: "present", label: t("present") },
+    { value: "absent", label: t("absent") },
+    { value: "late", label: t("late") },
+    { value: "half-day", label: t("halfDay") },
+  ];
+
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 sm:p-6 font-sans max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900">Edit Attendance Record</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("editAttendanceRecord")}</h2>
         <p className="text-sm text-slate-400 mt-0.5 mb-1">
-          Editing record for <span className="font-medium text-slate-600">{empName}</span>
-          {record.date && <span className="ml-1">— {new Date(record.date).toLocaleDateString()}</span>}
+          {t("editingRecordFor")} <span className="font-medium text-slate-600">{empName}</span>
+          {record.date && (
+            <span className="ml-1">
+              — {new Date(record.date).toLocaleDateString(i18n.language.startsWith("ar") ? "ar-EG" : "en-GB")}
+            </span>
+          )}
         </p>
 
         {/* General error */}
         {generalError && (
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 my-3">
             <div className="flex-1">
-              <p className="text-sm font-semibold text-red-700">Error</p>
+              <p className="text-sm font-semibold text-red-700">{t("error")}</p>
               <p className="text-xs text-red-500 mt-0.5">{generalError}</p>
             </div>
             <button onClick={() => setGeneralError(null)} className="text-red-300 hover:text-red-500">✕</button>
@@ -118,7 +136,7 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
         {/* Success */}
         {success && (
           <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 my-3">
-            <span className="text-green-600 font-semibold text-sm">✓ Record updated successfully!</span>
+            <span className="text-green-600 font-semibold text-sm">{t("recordUpdatedSuccessfully")}</span>
           </div>
         )}
 
@@ -127,12 +145,12 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
           {/* Recorded times (read-only) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Recorded Clock In</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("recordedClockIn")}</label>
               <input type="text" value={record.checkIn ?? "—"} readOnly
                 className="w-full border border-slate-100 rounded-xl px-3 py-2.5 text-sm text-slate-400 bg-slate-100 cursor-not-allowed" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Recorded Clock Out</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("recordedClockOut")}</label>
               <input type="text" value={record.checkOut ?? "—"} readOnly
                 className="w-full border border-slate-100 rounded-xl px-3 py-2.5 text-sm text-slate-400 bg-slate-100 cursor-not-allowed" />
             </div>
@@ -140,16 +158,16 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
 
           {/* Correction Details */}
           <div>
-            <h3 className="text-sm font-bold text-blue-600 mb-3">Correction Details</h3>
+            <h3 className="text-sm font-bold text-blue-600 mb-3">{t("correctionDetails")}</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">New Check-in</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("newCheckIn")}</label>
                 <input name="checkIn" type="time" value={form.checkIn}
                   onChange={handleChange} className={inputCls()} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">New Check-out</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("newCheckOut")}</label>
                 <input name="checkOut" type="time" value={form.checkOut}
                   onChange={handleChange} className={inputCls()} />
               </div>
@@ -158,27 +176,26 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
             {/* Status */}
             <div className="mb-3">
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Status <span className="text-red-400">*</span>
+                {t("status")} <span className="text-red-400">*</span>
               </label>
               <select name="status" value={form.status} onChange={handleChange}
                 className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all bg-white ${
                   statusError ? "border-red-300 focus:ring-red-200" : "border-slate-200 focus:ring-blue-500 text-slate-700"
                 }`}>
-                <option value="">Select Status</option>
-                <option value="present">Present</option>
-                <option value="absent">Absent</option>
-                <option value="late">Late</option>
-                <option value="half-day">Half Day</option>
+                <option value="">{t("selectStatus")}</option>
+                {options.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
               <FieldError msg={statusError} />
             </div>
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Reason For Adjustment</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("reasonForAdjustment")}</label>
               <textarea name="notes" rows={4} value={form.notes}
                 onChange={handleChange}
-                placeholder="Enter the reason for this correction..."
+                placeholder={t("enterReasonForCorrection")}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
           </div>
@@ -188,7 +205,7 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
         <div className="flex gap-3 mt-6 justify-end">
           <button onClick={onClose} disabled={isLoading}
             className="px-4 sm:px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50">
-            Cancel
+            {t("cancel")}
           </button>
           <button onClick={handleSubmit} disabled={isLoading || success}
             className="px-4 sm:px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors disabled:opacity-70 flex items-center gap-2">
@@ -198,7 +215,7 @@ export default function EditAttendanceModal({ record, onClose }: Props) {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
             )}
-            {isLoading ? "Saving..." : success ? "Saved ✓" : "Save Changes"}
+            {isLoading ? t("saving") : success ? t("saved") : t("saveChanges")}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Upload } from "lucide-react";
 
 type ExportType = "PDF" | "Excel" | "CSV";
@@ -9,12 +10,13 @@ interface ExportModalProps {
 }
 
 export default function ExportModal({ onClose, period = "November 01 - November 30, 2026" }: ExportModalProps) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<ExportType>("PDF");
 
   const options: { type: ExportType; icon: string; label: string }[] = [
-    { type: "PDF", icon: "📄", label: "PDF" },
-    { type: "Excel", icon: "📊", label: "Excel" },
-    { type: "CSV", icon: "📋", label: "CSV" },
+    { type: "PDF", icon: "📄", label: t("pdf") },
+    { type: "Excel", icon: "📊", label: t("excel") },
+    { type: "CSV", icon: "📋", label: t("csv") },
   ];
 
   return (
@@ -22,7 +24,7 @@ export default function ExportModal({ onClose, period = "November 01 - November 
       <div className="bg-[#f0f5ff] rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm p-6 font-sans">
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-xl font-bold text-gray-900">Export Type</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t("exportType")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 transition-colors"
@@ -38,7 +40,7 @@ export default function ExportModal({ onClose, period = "November 01 - November 
             <span className="text-blue-500 text-lg">📅</span>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-700">Report Period</p>
+            <p className="text-xs font-bold text-gray-700">{t("reportPeriod")}</p>
             <p className="text-sm text-gray-600 font-medium">{period}</p>
           </div>
         </div>
@@ -74,10 +76,10 @@ export default function ExportModal({ onClose, period = "November 01 - November 
             onClick={onClose}
             className="px-6 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
-            <Upload size={14} /> Export
+            <Upload size={14} /> {t("export")}
           </button>
         </div>
       </div>

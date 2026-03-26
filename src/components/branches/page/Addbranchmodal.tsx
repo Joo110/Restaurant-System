@@ -1,5 +1,5 @@
-// src/page/Addbranchmodal.tsx
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createBranch, type CreateBranchDTO } from "../services/branchService";
 
 type Props = {
@@ -22,6 +22,8 @@ type FieldErrors = {
 };
 
 export default function AddBranchModal({ onClose, onCreated }: Props) {
+  const { t } = useTranslation();
+
   const [name, setName] = useState("");
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
@@ -41,44 +43,44 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
   const normalizePhone = (p: string) => p.replace(/\s|-/g, "");
 
   const validateName = (v: string) => {
-    if (!v || !v.trim()) return "Name is required";
-    if (v.trim().length > 100) return "Name is too long (max 100 chars)";
+    if (!v || !v.trim()) return t("nameIsRequired");
+    if (v.trim().length > 100) return t("nameTooLong");
     return null;
   };
 
   const validateStreet = (v: string) => {
-    if (v && v.trim().length > 120) return "Street is too long (max 120 chars)";
+    if (v && v.trim().length > 120) return t("streetTooLong");
     return null;
   };
 
   const validateCity = (v: string) => {
-    if (!v || !v.trim()) return "City is required";
-    if (v.trim().length > 80) return "City is too long (max 80 chars)";
+    if (!v || !v.trim()) return t("cityIsRequired");
+    if (v.trim().length > 80) return t("cityTooLong");
     return null;
   };
 
   const validateCountry = (v: string) => {
-    if (!v || !v.trim()) return "Country is required";
-    if (v.trim().length > 80) return "Country is too long (max 80 chars)";
+    if (!v || !v.trim()) return t("countryIsRequired");
+    if (v.trim().length > 80) return t("countryTooLong");
     return null;
   };
 
   const validatePhone = (v: string) => {
-    if (!v || !v.trim()) return "Phone is required";
+    if (!v || !v.trim()) return t("phoneIsRequired");
     const digits = normalizePhone(v).replace(/\D/g, "");
-    if (!egyptPhoneDigitsRegex.test(digits)) return "Phone must be a valid Egyptian mobile (e.g. 010xxxxxxxx)";
+    if (!egyptPhoneDigitsRegex.test(digits)) return t("phoneInvalidEgyptian");
     return null;
   };
 
   const validateEmail = (v: string) => {
-    if (!v || !v.trim()) return "Email is required";
-    if (!emailRegex.test(v.trim())) return "Email is invalid";
-    if (v.trim().length > 120) return "Email is too long (max 120 chars)";
+    if (!v || !v.trim()) return t("emailIsRequired");
+    if (!emailRegex.test(v.trim())) return t("emailInvalid");
+    if (v.trim().length > 120) return t("emailTooLong");
     return null;
   };
 
   const validateNotes = (v: string) => {
-    if (v && v.length > 500) return "Notes too long (max 500 chars)";
+    if (v && v.length > 500) return t("notesTooLong");
     return null;
   };
 
@@ -181,7 +183,7 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
       } else {
         // fallback to error message if available
         if (err instanceof Error) newErrors.general = err.message;
-        else newErrors.general = "Failed to create branch";
+        else newErrors.general = t("failedToCreateBranch");
       }
 
       setErrors(newErrors);
@@ -201,11 +203,11 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
       {/* modal */}
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6 mx-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold">Add New Branch</h3>
+          <h3 className="text-lg font-bold">{t("addNewBranch")}</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
-            aria-label="Close"
+            aria-label={t("close")}
           >
             ✕
           </button>
@@ -213,13 +215,13 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1">Name</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1">{t("name")}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setErrors((s) => ({ ...s, name: validateField("name") }))}
               className={errors.name ? inputError : inputNormal}
-              placeholder="e.g. Downtown Branch"
+              placeholder={t("namePlaceholder")}
               maxLength={100}
               required
             />
@@ -228,38 +230,38 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-1">Street</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">{t("street")}</label>
               <input
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 onBlur={() => setErrors((s) => ({ ...s, street: validateField("street") }))}
                 className={errors.street ? inputError : inputNormal}
-                placeholder="25 Tahrir Street"
+                placeholder={t("streetPlaceholder")}
                 maxLength={120}
               />
               {errors.street && <p className="text-xs text-red-500 mt-1">{errors.street}</p>}
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-1">City</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">{t("city")}</label>
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 onBlur={() => setErrors((s) => ({ ...s, city: validateField("city") }))}
                 className={errors.city ? inputError : inputNormal}
-                placeholder="Cairo"
+                placeholder={t("cityPlaceholder")}
                 maxLength={80}
                 required
               />
               {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city}</p>}
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-1">Country</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">{t("country")}</label>
               <input
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 onBlur={() => setErrors((s) => ({ ...s, country: validateField("country") }))}
                 className={errors.country ? inputError : inputNormal}
-                placeholder="Egypt"
+                placeholder={t("countryPlaceholder")}
                 maxLength={80}
                 required
               />
@@ -269,26 +271,26 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-1">Phone</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">{t("phone")}</label>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 onBlur={() => setErrors((s) => ({ ...s, phone: validateField("phone") }))}
                 className={errors.phone ? inputError : inputNormal}
-                placeholder="01001234567"
+                placeholder={t("phonePlaceholder")}
                 maxLength={20}
                 required
               />
               {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-700 block mb-1">Email</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">{t("email")}</label>
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => setErrors((s) => ({ ...s, email: validateField("email") }))}
                 className={errors.email ? inputError : inputNormal}
-                placeholder="downtown@restaurant.com"
+                placeholder={t("emailPlaceholder")}
                 type="email"
                 maxLength={120}
                 required
@@ -298,14 +300,14 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1">Notes</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1">{t("notes")}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               onBlur={() => setErrors((s) => ({ ...s, notes: validateField("notes") }))}
               className={errors.notes ? inputError : inputNormal}
               rows={3}
-              placeholder="Optional notes..."
+              placeholder={t("notesPlaceholder")}
               maxLength={500}
             />
             {errors.notes && <p className="text-xs text-red-500 mt-1">{errors.notes}</p>}
@@ -320,14 +322,14 @@ export default function AddBranchModal({ onClose, onCreated }: Props) {
               className="px-4 py-2 rounded-xl bg-gray-100 text-sm font-semibold"
               disabled={isSubmitting}
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-60"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating..." : "Create Branch"}
+              {isSubmitting ? t("creating") : t("createBranch")}
             </button>
           </div>
         </form>

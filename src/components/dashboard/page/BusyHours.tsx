@@ -1,5 +1,6 @@
 // src/components/dashboard/page/BusyHours.tsx
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -14,19 +15,21 @@ interface BusyHoursProps {
 }
 
 const BusyHours: React.FC<BusyHoursProps> = ({ busyHours }) => {
+  const { t } = useTranslation();
+
   // لو الداتا فاضية نعرض رسالة
   if (!busyHours || busyHours.length === 0) {
     return (
       <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Busy Hours</h2>
-        <p className="text-xs text-gray-300 text-center py-8">No data available</p>
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">{t("dashboard.busyHours.title")}</h2>
+        <p className="text-xs text-gray-300 text-center py-8">{t("dashboard.busyHours.empty")}</p>
       </div>
     );
   }
 
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">Busy Hours</h2>
+      <h2 className="text-sm font-semibold text-gray-700 mb-4">{t("dashboard.busyHours.title")}</h2>
       <ResponsiveContainer width="100%" height={120}>
         <BarChart
           data={busyHours}

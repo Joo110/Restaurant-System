@@ -1,5 +1,5 @@
-// src/pages/ExecutiveDashboard.tsx
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { DollarSign, ShoppingBag, TrendingUp, Receipt, MapPin } from "lucide-react";
 import { useExecutive } from "../../dashboard/hook/useAccounts";
 
@@ -55,49 +55,54 @@ const BranchCard = ({
   name, location, revenue, profit, change,
 }: {
   name: string; location: string; revenue: number; profit: number; change: string;
-}) => (
-  <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-    <div className="flex items-center gap-3 mb-3">
-      <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
-        <ShoppingBag size={16} className="text-blue-500" />
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
+          <ShoppingBag size={16} className="text-blue-500" />
+        </div>
+        <div>
+          <p className="font-bold text-gray-800 text-sm">{name}</p>
+          <p className="text-xs text-gray-400 flex items-center gap-1">
+            <MapPin size={10} /> {location}
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="font-bold text-gray-800 text-sm">{name}</p>
-        <p className="text-xs text-gray-400 flex items-center gap-1">
-          <MapPin size={10} /> {location}
-        </p>
+      <div className="border-t border-gray-50 pt-3 grid grid-cols-3 gap-2">
+        <div>
+          <p className="text-[10px] text-gray-400">{t("revenue")}</p>
+          <p className="text-sm font-bold text-gray-800">${revenue.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-400">{t("change")}</p>
+          <p className={`text-sm font-bold ${change.startsWith("-") ? "text-red-500" : "text-green-500"}`}>
+            {change}%
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-400">{t("profit")}</p>
+          <p className={`text-sm font-bold ${profit >= 0 ? "text-green-500" : "text-red-500"}`}>
+            ${profit.toLocaleString()}
+          </p>
+        </div>
       </div>
     </div>
-    <div className="border-t border-gray-50 pt-3 grid grid-cols-3 gap-2">
-      <div>
-        <p className="text-[10px] text-gray-400">Revenue</p>
-        <p className="text-sm font-bold text-gray-800">${revenue.toLocaleString()}</p>
-      </div>
-      <div>
-        <p className="text-[10px] text-gray-400">Change</p>
-        <p className={`text-sm font-bold ${change.startsWith("-") ? "text-red-500" : "text-green-500"}`}>
-          {change}%
-        </p>
-      </div>
-      <div>
-        <p className="text-[10px] text-gray-400">Profit</p>
-        <p className={`text-sm font-bold ${profit >= 0 ? "text-green-500" : "text-red-500"}`}>
-          ${profit.toLocaleString()}
-        </p>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 // ── Revenue by Branch ─────────────────────────────────────────────────────────
 const RevenueByBranch = ({ branches }: { branches: { name: string; revenue: number; profit: number }[] }) => {
+  const { t } = useTranslation();
   const maxRevenue = Math.max(...branches.map((b) => b.revenue), 1);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm h-full">
-      <p className="font-bold text-gray-800 mb-1">Revenue by Branch</p>
-      <p className="text-xs text-gray-400 mb-4">Top Performing Locations</p>
+      <p className="font-bold text-gray-800 mb-1">{t("revenueByBranch")}</p>
+      <p className="text-xs text-gray-400 mb-4">{t("topPerformingLocations")}</p>
       {branches.length === 0 ? (
-        <p className="text-xs text-gray-300 text-center py-8">No data</p>
+        <p className="text-xs text-gray-300 text-center py-8">{t("noData")}</p>
       ) : (
         <div className="space-y-3">
           {branches.map((b) => {
@@ -125,6 +130,8 @@ const RevenueByBranch = ({ branches }: { branches: { name: string; revenue: numb
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ExecutiveDashboard() {
+  const { t } = useTranslation();
+
   const [period, setPeriod] = useState<"Today" | "This Week" | "This Month">("Today");
   const [from,   setFrom]   = useState("2026-01-01");
   const [to,     setTo]     = useState("2026-03-31");
@@ -134,25 +141,25 @@ export default function ExecutiveDashboard() {
 
   const stats = [
     {
-      icon: DollarSign,  label: "Total Revenue",
+      icon: DollarSign,  label: t("totalRevenue"),
       value: `$${(e?.summary.totalRevenue.value ?? 0).toLocaleString()}`,
       badge: e?.summary.totalRevenue.change,
       color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill,
     },
     {
-      icon: ShoppingBag, label: "Total Orders",
+      icon: ShoppingBag, label: t("totalOrders"),
       value: String(e?.summary.totalOrders.value ?? 0),
       badge: e?.summary.totalOrders.change,
       color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill,
     },
     {
-      icon: TrendingUp,  label: "Net Profit",
+      icon: TrendingUp,  label: t("netProfit"),
       value: `$${(e?.summary.netProfit ?? 0).toLocaleString()}`,
       color: (e?.summary.netProfit ?? 0) >= 0 ? "text-orange-400" : "text-red-500",
       sparkColor: "#fb923c", sparkFill: orangeFill,
     },
     {
-      icon: Receipt,     label: "Total Expenses",
+      icon: Receipt,     label: t("totalExpenses"),
       value: `$${(e?.summary.totalExpenses ?? 0).toLocaleString()}`,
       color: "text-red-400",    sparkColor: "#f87171", sparkFill: redFill,
     },
@@ -161,7 +168,7 @@ export default function ExecutiveDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <p className="text-gray-400 text-sm animate-pulse">Loading executive data...</p>
+        <p className="text-gray-400 text-sm animate-pulse">{t("loadingExecutiveData")}</p>
       </div>
     );
   }
@@ -171,9 +178,9 @@ export default function ExecutiveDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Overview</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{t("dashboardOverview")}</h2>
           <p className="text-sm text-gray-400">
-            Real-time performance across all {e?.branchPerformance.length ?? 0} locations.
+            {t("realTimePerformanceAcrossLocations", { count: e?.branchPerformance.length ?? 0 })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -183,7 +190,7 @@ export default function ExecutiveDashboard() {
                 className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   period === p ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"
                 }`}
-              >{p}</button>
+              >{t(p === "Today" ? "today" : p === "This Week" ? "thisWeek" : "thisMonth")}</button>
             ))}
           </div>
           {/* Date range */}
@@ -201,7 +208,7 @@ export default function ExecutiveDashboard() {
 
       {/* Branch Performance */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-900">Branch Performance</h3>
+        <h3 className="text-lg font-bold text-gray-900">{t("branchPerformance")}</h3>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

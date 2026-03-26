@@ -3,6 +3,7 @@ import { Bell, Calendar, ChevronDown, RefreshCw, User, Menu, Check, LogOut } fro
 import { useBranches } from "../branches/hook/useBranches";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
+import { useTranslation } from "react-i18next";
 
 interface TopbarProps {
   onMenuClick?: () => void;
@@ -25,7 +26,6 @@ export function getBranchId(branch: ApiBranch | undefined): string | undefined {
   return undefined;
 }
 
-// ─── helper: قرا الـ user من الكوكيز ─────────────────────────────────────────
 function getAuthUser(): { role?: string; branchId?: string; name?: string } | null {
   try {
     const raw = Cookies.get("authUser");
@@ -37,6 +37,7 @@ function getAuthUser(): { role?: string; branchId?: string; name?: string } | nu
 }
 
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }) => {
+  const { t, i18n } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<ApiBranch | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -44,9 +45,9 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
 
   const { data } = useBranches();
 
-  // ✅ اقرأ الـ role من الكوكيز — لو manager اخفي الـ branch dropdown
   const authUser = getAuthUser();
   const isManager = authUser?.role === "manager";
+  const isAr = i18n.language === "ar";
 
   const apiBranches: ApiBranch[] = Array.isArray(data)
     ? (data as ApiBranch[])
@@ -54,7 +55,6 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
     ? (data as any).data
     : [];
 
-  // ✅ بدون داتا وهمية
   const branches: ApiBranch[] = apiBranches;
 
   useEffect(() => {
@@ -83,7 +83,15 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
     onBranchChange?.(branch);
   };
 
-  const today = new Date().toLocaleDateString("en-US", {
+  const toggleLang = () => {
+    const newLang = isAr ? "en" : "ar";
+    i18n.changeLanguage(newLang);
+    localStorage.setItem("lang", newLang);
+    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = newLang;
+  };
+
+  const today = new Date().toLocaleDateString(isAr ? "ar-EG" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -103,10 +111,10 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
         )}
 
         <h1 className="text-sm sm:text-base font-bold text-gray-800 whitespace-nowrap">
-          Store Overview
+          {t("storeOverview")}
         </h1>
 
-        {/* ✅ Branch Dropdown — بتظهر بس لو فيه branches حقيقية */}
+        {/* Branch Dropdown */}
         {!isManager && (
           <div ref={dropdownRef} className="hidden sm:block relative">
             <button
@@ -119,7 +127,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
             >
               <span>🏢</span>
               <span className="whitespace-nowrap max-w-[140px] truncate">
-                {selectedBranch?.name ?? "Select Branch"}
+                {selectedBranch?.name ?? t("selectBranch")}
               </span>
               <ChevronDown
                 size={13}
@@ -155,7 +163,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
           </div>
         )}
 
-        {/* ✅ لو Manager — اعرض بياناته بس */}
+        {/* Manager label */}
         {isManager && authUser?.name && (
           <span className="hidden sm:flex items-center gap-2 text-sm text-gray-500 border border-gray-100 rounded-lg px-3 py-1.5 bg-gray-50">
             <span>🏢</span>
@@ -179,6 +187,15 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
           <RefreshCw size={15} />
         </button>
 
+        {/* Language Toggle */}
+        <button
+          onClick={toggleLang}
+          className="p-2 border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all bg-white text-xs font-bold w-9 h-9 flex items-center justify-center"
+          title={isAr ? t("switchToEnglish") : t("switchToArabic")}
+        >
+          {isAr ? "EN" : "عر"}
+        </button>
+
         {/* Bell */}
         <div className="relative">
           <button
@@ -194,7 +211,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
         <button
           onClick={() => navigate("/profile")}
           className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-all bg-white"
-          title="My Profile"
+          title={t("myProfile")}
         >
           <User size={15} />
         </button>
@@ -203,7 +220,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
         {onLogout && (
           <button
             onClick={onLogout}
-            title="Logout"
+            title={t("logout")}
             className="p-2 border border-gray-200 rounded-lg text-red-400 hover:text-red-600 hover:border-red-300 transition-all bg-white"
           >
             <LogOut size={15} />

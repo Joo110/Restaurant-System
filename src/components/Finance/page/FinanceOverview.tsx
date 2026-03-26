@@ -12,6 +12,7 @@ import {
   Cell,
 } from "recharts";
 import { Download, AlertCircle, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useFinance } from "../../dashboard/hook/useAccounts";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -33,19 +34,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return (
     <div className="bg-slate-800 text-white text-xs px-3 py-2 rounded-xl shadow-lg">
       <p className="font-bold">${Number(payload[0].value || 0).toLocaleString()}</p>
-      <p className="text-slate-400">Month {label}</p>
+      <p className="text-slate-400">{label}</p>
     </div>
   );
 };
 
 export default function FinanceOverview() {
-  const [period, setPeriod] = useState<"Today" | "This Week" | "This Month">("This Month");
-  const [chartMode, setChartMode] = useState<"Monthly Revenue" | "Profit Analysis">("Monthly Revenue");
+  const { t } = useTranslation();
+
+  const [period, setPeriod] = useState<"today" | "thisWeek" | "thisMonth">("thisMonth");
+  const [chartMode, setChartMode] = useState<"monthlyRevenue" | "profitAnalysis">("monthlyRevenue");
   const [year, setYear] = useState<number>(new Date().getFullYear());
 
   const { data, isLoading, isError, error, refetch } = useFinance({ year });
 
-  // normalize response whether hook gives outer object or inner payload
   const finance = useMemo(() => {
     const maybeOuter = data as any;
     return maybeOuter?.data ?? maybeOuter ?? null;
@@ -57,8 +59,8 @@ export default function FinanceOverview() {
     profit: Number(m.revenue ?? 0) * 0.3,
   }));
 
-  const chartKey = chartMode === "Monthly Revenue" ? "revenue" : "profit";
-  const chartColor = chartMode === "Monthly Revenue" ? "#2563eb" : "#10b981";
+  const chartKey = chartMode === "monthlyRevenue" ? "revenue" : "profit";
+  const chartColor = chartMode === "monthlyRevenue" ? "#2563eb" : "#10b981";
 
   const totalRevenue = Number(finance?.summary?.totalRevenue ?? 0);
   const totalExpenses = Number(finance?.summary?.totalExpenses ?? 0);
@@ -68,7 +70,7 @@ export default function FinanceOverview() {
 
   const statCards = [
     {
-      label: "Total Revenue",
+      label: t("totalRevenue"),
       value: `$${totalRevenue.toLocaleString()}`,
       delta: finance?.summary?.totalRevenueChange ?? "0%",
       up: !String(finance?.summary?.totalRevenueChange ?? "").startsWith("-"),
@@ -76,7 +78,7 @@ export default function FinanceOverview() {
       miniColor: "#22c55e",
     },
     {
-      label: "Total Expenses",
+      label: t("totalExpenses"),
       value: `$${totalExpenses.toLocaleString()}`,
       delta: "",
       up: false,
@@ -84,7 +86,7 @@ export default function FinanceOverview() {
       miniColor: "#ef4444",
     },
     {
-      label: "Net Profit",
+      label: t("netProfit"),
       value: `$${netProfit.toLocaleString()}`,
       delta: finance?.summary?.profitMargin ?? "",
       up: netProfit >= 0,
@@ -92,7 +94,7 @@ export default function FinanceOverview() {
       miniColor: netProfit >= 0 ? "#22c55e" : "#ef4444",
     },
     {
-      label: "Total Payroll",
+      label: t("totalPayroll"),
       value: `$${payrollCurrentYear.toLocaleString()}`,
       delta: "",
       up: true,
@@ -103,16 +105,16 @@ export default function FinanceOverview() {
 
   const expenseBreakdown = finance?.expenseBreakdown ?? [];
 
-  const orderTypeData = (finance?.revenueByType ?? []).map((t: any) => ({
-    name: t.type,
-    value: Number(t.revenue ?? 0),
-    amount: Number(t.revenue ?? 0),
+  const orderTypeData = (finance?.revenueByType ?? []).map((item: any) => ({
+    name: t(item.typeKey ?? item.type ?? "other"),
+    value: Number(item.revenue ?? 0),
+    amount: Number(item.revenue ?? 0),
   }));
 
   if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <p className="text-slate-400 text-sm animate-pulse">Loading finance data...</p>
+        <p className="text-slate-400 text-sm animate-pulse">{t("loadingFinanceData")}</p>
       </div>
     );
   }
@@ -124,16 +126,16 @@ export default function FinanceOverview() {
           <div className="w-12 h-12 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-3">
             <AlertCircle className="text-red-500" size={22} />
           </div>
-          <h2 className="font-bold text-slate-900 mb-1">Failed to load finance data</h2>
+          <h2 className="font-bold text-slate-900 mb-1">{t("failedToLoadFinanceData")}</h2>
           <p className="text-sm text-slate-500 mb-4 break-words">
-            {(error as any)?.message ?? "Unknown error"}
+            {(error as any)?.message ?? t("unknownError")}
           </p>
           <button
             onClick={refetch}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
           >
             <RefreshCw size={14} />
-            Retry
+            {t("retry")}
           </button>
         </div>
       </div>
@@ -142,17 +144,16 @@ export default function FinanceOverview() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Financial</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{t("financial")}</h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-            Real-time performance across all restaurant branches
+            {t("realTimePerformanceAcrossAllRestaurantBranches")}
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {(["Today", "This Week", "This Month"] as const).map((p) => (
+          {(["today", "thisWeek", "thisMonth"] as const).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -162,16 +163,16 @@ export default function FinanceOverview() {
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {p}
+              {t(p)}
             </button>
           ))}
 
           <select
             value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
+            onChange={e => setYear(Number(e.target.value))}
             className="px-3 py-2 rounded-xl text-xs border border-slate-200 text-slate-600 bg-white outline-none"
           >
-            {[2024, 2025, 2026].map((y) => (
+            {[2024, 2025, 2026].map(y => (
               <option key={y} value={y}>
                 {y}
               </option>
@@ -179,14 +180,13 @@ export default function FinanceOverview() {
           </select>
 
           <button className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors">
-            <Download size={13} /> Export
+            <Download size={13} /> {t("export")}
           </button>
         </div>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        {statCards.map((card) => (
+        {statCards.map(card => (
           <div key={card.label} className="bg-white rounded-2xl border border-slate-100 p-3 sm:p-4 shadow-sm">
             <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">{card.label}</p>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -197,7 +197,7 @@ export default function FinanceOverview() {
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Vs last month</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t("vsLastMonth")}</p>
             <div className="mt-1 opacity-70">
               <Spark color={card.miniColor} />
             </div>
@@ -205,16 +205,15 @@ export default function FinanceOverview() {
         ))}
       </div>
 
-      {/* Revenue Chart */}
       <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <h2 className="font-bold text-slate-900 text-sm sm:text-base">Revenue & Profit Trends</h2>
-            <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Monthly performance breakdown</p>
+            <h2 className="font-bold text-slate-900 text-sm sm:text-base">{t("revenueAndProfitTrends")}</h2>
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">{t("monthlyPerformanceBreakdown")}</p>
           </div>
 
           <div className="flex gap-2">
-            {(["Monthly Revenue", "Profit Analysis"] as const).map((m) => (
+            {(["monthlyRevenue", "profitAnalysis"] as const).map(m => (
               <button
                 key={m}
                 onClick={() => setChartMode(m)}
@@ -222,14 +221,14 @@ export default function FinanceOverview() {
                   chartMode === m ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
               >
-                {m}
+                {t(m)}
               </button>
             ))}
           </div>
         </div>
 
         {chartData.length === 0 ? (
-          <p className="text-xs text-slate-300 text-center py-12">No revenue data for this year</p>
+          <p className="text-xs text-slate-300 text-center py-12">{t("noRevenueDataForThisYear")}</p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
@@ -239,7 +238,7 @@ export default function FinanceOverview() {
                 tick={{ fontSize: 10, fill: "#94a3b8" }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => `$${(Number(v) / 1000).toFixed(0)}k`}
+                tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`}
                 width={45}
               />
               <Tooltip content={<CustomTooltip />} />
@@ -256,23 +255,21 @@ export default function FinanceOverview() {
         )}
       </div>
 
-      {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Expense Breakdown */}
         <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 text-sm sm:text-base">Expense Breakdown</h2>
-          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 mb-4">Operational cost distribution</p>
+          <h2 className="font-bold text-slate-900 text-sm sm:text-base">{t("expenseBreakdown")}</h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 mb-4">{t("operationalCostDistribution")}</p>
 
           {expenseBreakdown.length === 0 ? (
-            <p className="text-xs text-slate-300 text-center py-8">No expense data</p>
+            <p className="text-xs text-slate-300 text-center py-8">{t("noExpenseData")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[260px]">
                 <thead>
                   <tr className="text-[11px] sm:text-xs text-slate-400 border-b border-slate-100">
-                    <th className="pb-2 text-left font-medium">Category</th>
+                    <th className="pb-2 text-left font-medium">{t("category")}</th>
                     <th className="pb-2 text-center font-medium">%</th>
-                    <th className="pb-2 text-right font-medium">Value</th>
+                    <th className="pb-2 text-right font-medium">{t("value")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -295,13 +292,12 @@ export default function FinanceOverview() {
           )}
         </div>
 
-        {/* Revenue by Order Type */}
         <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 text-sm sm:text-base">Revenue by Order Type</h2>
-          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 mb-2">Channel performance distribution</p>
+          <h2 className="font-bold text-slate-900 text-sm sm:text-base">{t("revenueByOrderType")}</h2>
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 mb-2">{t("channelPerformanceDistribution")}</p>
 
           {orderTypeData.length === 0 ? (
-            <p className="text-xs text-slate-300 text-center py-12">No data</p>
+            <p className="text-xs text-slate-300 text-center py-12">{t("noData")}</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -343,28 +339,27 @@ export default function FinanceOverview() {
         </div>
       </div>
 
-      {/* Payroll Summary */}
       <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <span className="text-blue-600 text-base sm:text-lg">💰</span>
           </div>
           <div>
-            <h2 className="font-bold text-slate-900 text-sm sm:text-base">Payroll Summary</h2>
-            <p className="text-[11px] sm:text-xs text-slate-400">Year: {year}</p>
+            <h2 className="font-bold text-slate-900 text-sm sm:text-base">{t("payrollSummary")}</h2>
+            <p className="text-[11px] sm:text-xs text-slate-400">{t("year")} : {year}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
           <div className="border border-slate-100 rounded-xl p-2.5 sm:p-3">
-            <p className="text-[10px] sm:text-xs text-slate-400">Total Payroll</p>
+            <p className="text-[10px] sm:text-xs text-slate-400">{t("totalPayroll")}</p>
             <p className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">
               ${payrollCurrentYear.toLocaleString()}
             </p>
           </div>
 
           <div className="border border-slate-100 rounded-xl p-2.5 sm:p-3">
-            <p className="text-[10px] sm:text-xs text-slate-400">Next Payroll</p>
+            <p className="text-[10px] sm:text-xs text-slate-400">{t("nextPayroll")}</p>
             <p className="text-base sm:text-lg font-bold text-slate-900 mt-0.5">
               ${payrollNext.toLocaleString()}
             </p>

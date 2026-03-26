@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   useAttendances,
@@ -53,6 +54,7 @@ function isObjectId(value?: string) {
 
 /* ─────────────────────────────────────────────────────── */
 export default function AttendancePage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   /* ── branch ── */
@@ -108,14 +110,14 @@ export default function AttendancePage() {
     e.stopPropagation();
     const id = resolveId(rec);
     if (!id) return;
-    if (!window.confirm("Delete this attendance record?")) return;
+    if (!window.confirm(t("deleteThisAttendanceRecord"))) return;
 
     setDeletingId(id);
     try {
       await deleteAttendanceFn(id);
       invalidateQuery("attendance");
     } catch {
-      alert("Failed to delete record.");
+      alert(t("failedToDeleteRecord"));
     } finally {
       setDeletingId(null);
     }
@@ -133,6 +135,13 @@ export default function AttendancePage() {
     navigate(`/dashboard/staff/${empId}`);
   };
 
+  const statusFilters = ["all", "present", "late", "absent", "half-day"] as const;
+
+  const translateStatus = (value?: string) => {
+    const key = (value ?? "").toLowerCase();
+    return key ? t(key) : "—";
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-3 sm:p-5 font-sans">
       {/* Top bar */}
@@ -146,7 +155,7 @@ export default function AttendancePage() {
           </span>
           <input
             type="text"
-            placeholder="Search employee..."
+            placeholder={t("searchEmployee")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -158,7 +167,7 @@ export default function AttendancePage() {
 
         {/* Status filter pills */}
         <div className="flex gap-2 flex-wrap">
-          {["all", "present", "late", "absent", "half-day"].map((s) => (
+          {statusFilters.map((s) => (
             <button
               key={s}
               onClick={() => {
@@ -171,7 +180,7 @@ export default function AttendancePage() {
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {s === "all" ? "All" : s}
+              {s === "all" ? t("all") : t(s)}
             </button>
           ))}
         </div>
@@ -180,7 +189,7 @@ export default function AttendancePage() {
           onClick={handleLogClick}
           className="sm:ml-auto px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors whitespace-nowrap"
         >
-          + Log Attendance
+          + {t("logAttendance")}
         </button>
       </div>
 
@@ -188,28 +197,28 @@ export default function AttendancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
           {
-            label: "Present",
+            label: t("present"),
             value: stats.totalPresent ?? 0,
             total: totalDocs || 1,
             color: "bg-blue-500",
             text: "text-slate-800",
           },
           {
-            label: "Late",
+            label: t("late"),
             value: stats.totalLate ?? 0,
             total: totalDocs || 1,
             color: "bg-orange-400",
             text: "text-orange-500",
           },
           {
-            label: "Absent",
+            label: t("absent"),
             value: stats.totalAbsent ?? 0,
             total: totalDocs || 1,
             color: "bg-red-400",
             text: "text-red-500",
           },
           {
-            label: "Overtime",
+            label: t("overtime"),
             value: stats.totalOvertimeHours ?? 0,
             total: totalDocs || 1,
             color: "bg-blue-300",
@@ -243,13 +252,13 @@ export default function AttendancePage() {
           <table className="w-full text-sm min-w-[640px]">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-                <th className="py-3 px-4 text-left">Employee</th>
-                <th className="py-3 px-4 text-left">Date</th>
-                <th className="py-3 px-4 text-left">Check In</th>
-                <th className="py-3 px-4 text-left">Check Out</th>
-                <th className="py-3 px-4 text-left">Hours</th>
-                <th className="py-3 px-4 text-left">Status</th>
-                <th className="py-3 px-4 text-left">Action</th>
+                <th className="py-3 px-4 text-left">{t("employee")}</th>
+                <th className="py-3 px-4 text-left">{t("date")}</th>
+                <th className="py-3 px-4 text-left">{t("checkIn")}</th>
+                <th className="py-3 px-4 text-left">{t("checkOut")}</th>
+                <th className="py-3 px-4 text-left">{t("hours")}</th>
+                <th className="py-3 px-4 text-left">{t("status")}</th>
+                <th className="py-3 px-4 text-left">{t("action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -261,7 +270,7 @@ export default function AttendancePage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                       </svg>
-                      Loading...
+                      {t("loading")}
                     </div>
                   </td>
                 </tr>
@@ -270,9 +279,9 @@ export default function AttendancePage() {
               {isError && !isLoading && (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-red-400 text-sm">
-                    Failed to load records.{" "}
+                    {t("failedToLoadRecords")}{" "}
                     <button onClick={() => refetch()} className="underline">
-                      Retry
+                      {t("retry")}
                     </button>
                   </td>
                 </tr>
@@ -281,7 +290,7 @@ export default function AttendancePage() {
               {!isLoading && !isError && records.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400 text-sm">
-                    No attendance records found.
+                    {t("noAttendanceRecordsFound")}
                   </td>
                 </tr>
               )}
@@ -311,7 +320,7 @@ export default function AttendancePage() {
                         {empName}
                       </td>
                       <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                        {rec.date ? new Date(rec.date).toLocaleDateString() : "—"}
+                        {rec.date ? new Date(rec.date).toLocaleDateString(i18n.language.startsWith("ar") ? "ar-EG" : "en-GB") : "—"}
                       </td>
                       <td className="py-3 px-4 text-slate-600">{fmtTime(rec.checkIn)}</td>
                       <td className="py-3 px-4 text-slate-600">{fmtTime(rec.checkOut)}</td>
@@ -324,7 +333,7 @@ export default function AttendancePage() {
                             statusStyle[status] ?? "bg-slate-100 text-slate-500"
                           }`}
                         >
-                          {rec.status ?? "—"}
+                          {translateStatus(rec.status)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -335,7 +344,7 @@ export default function AttendancePage() {
                               setEditRecord(rec);
                             }}
                             className="text-slate-400 hover:text-blue-500 transition-colors text-base"
-                            title="Edit"
+                            title={t("edit")}
                           >
                             ✏
                           </button>
@@ -343,7 +352,7 @@ export default function AttendancePage() {
                             onClick={(e) => handleDelete(e, rec)}
                             disabled={isDeleting}
                             className="text-slate-400 hover:text-red-500 transition-colors text-base disabled:opacity-40"
-                            title="Delete"
+                            title={t("delete")}
                           >
                             🗑
                           </button>
@@ -360,8 +369,12 @@ export default function AttendancePage() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t border-slate-50">
           <span className="text-xs text-slate-400">
             {totalDocs === 0
-              ? "No records"
-              : `Showing ${(currentPage - 1) * limit + 1}–${Math.min(currentPage * limit, totalDocs)} of ${totalDocs}`}
+              ? t("noRecords")
+              : t("showingRecords", {
+                  start: (currentPage - 1) * limit + 1,
+                  end: Math.min(currentPage * limit, totalDocs),
+                  total: totalDocs,
+                })}
           </span>
           <div className="flex items-center gap-1">
             <button

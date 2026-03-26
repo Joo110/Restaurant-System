@@ -1,11 +1,10 @@
-// src/components/Staff/page/LeaveAttendancePage.tsx
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAttendances, useAttendanceStats } from "../../Attendance/hooks/Useattendance";
 import type { Attendance } from "../../Attendance/services/Attendanceservice";
 
 type RequestStatus = "Pending" | "refused" | "Accept";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 
 /* ------------------ UI constants (kept same look) ------------------ */
 const calendarDays = Array.from({ length: 30 }, (_, i) => i + 1);
@@ -23,7 +22,15 @@ type Props = {
   employeeId?: string | null;
 };
 
+function normalizeRequestStatus(raw?: string): RequestStatus {
+  const s = (raw ?? "").toLowerCase();
+  if (s === "accept" || s === "accepted" || s === "approve" || s === "approved") return "Accept";
+  if (s === "refused" || s === "rejected" || s === "declined") return "refused";
+  return "Pending";
+}
+
 export default function LeaveAttendancePage({ employeeId }: Props) {
+  const { t, i18n } = useTranslation();
   const [showAllRequests, setShowAllRequests] = useState(false);
 
   // fetch attendances for this employee (most recent first)
@@ -79,13 +86,13 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
         (r as any).employee?.fullName ??
         (r as any).employeeName ??
         (r.employeeId ? `#${r.employeeId}` : "Employee");
-      const dateStr = r.date ? new Date(r.date).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" }) : "—";
+      const dateStr = r.date ? new Date(r.date).toLocaleDateString(i18n.language.startsWith("ar") ? "ar-EG" : undefined, { month: "short", day: "2-digit", year: "numeric" }) : "—";
       const days = 1;
       const reason = r.notes ?? (r as any).reason ?? "—";
-      const status = (r.status ?? "Pending").toString();
-      return { name, dates: dateStr, days, reason, status: (status.charAt(0).toUpperCase() + status.slice(1)) as RequestStatus, raw: r };
+      const status = normalizeRequestStatus((r.status ?? "Pending").toString());
+      return { name, dates: dateStr, days, reason, status, raw: r };
     });
-  }, [records]);
+  }, [records, i18n.language]);
 
   // choose displayed requests (respect showAllRequests)
   const displayedRequests = showAllRequests ? recentRequests : recentRequests.slice(0, 4);
@@ -102,23 +109,23 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
   // header chips content (fall back to previous static values if stats not ready)
   const chips = [
     {
-      label: "Annual Leave Balance",
-      value: (statsData?.data?.totalAbsent != null) ? `${Math.max(0, 20 - (statsData.data.totalAbsent ?? 0))}/20 Days` : "14/20 Days",
+      label: t("annualLeaveBalance"),
+      value: (statsData?.data?.totalAbsent != null) ? `${Math.max(0, 20 - (statsData.data.totalAbsent ?? 0))}/20 ${t("days")}` : `14/20 ${t("days")}`,
       icon: "🏖",
       color: "text-slate-800",
       bar: "bg-blue-500",
       barW: (statsData?.data ? `${Math.min(100, Math.round(((statsData.data.totalPresent ?? 0) / 20) * 100))}%` : "70%"),
     },
     {
-      label: "Sick Leave Balance",
-      value: "6/10 Days",
+      label: t("sickLeaveBalance"),
+      value: `6/10 ${t("days")}`,
       icon: "🤒",
       color: "text-red-500",
       bar: "bg-red-400",
       barW: "60%",
     },
     {
-      label: "Attendance Rate",
+      label: t("attendanceRate"),
       value: statsData?.data?.totalPresent != null && records.length > 0
         ? `${Math.round(((statsData.data.totalPresent ?? 0) / Math.max(1, records.length)) * 100)}%`
         : "—",
@@ -128,7 +135,7 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
       barW: statsData?.data ? `${Math.min(100, Math.round(((statsData.data.totalPresent ?? 0) / Math.max(1, records.length)) * 100))}%` : "98%",
     },
     {
-      label: "Years of Service",
+      label: t("yearsOfService"),
       value: "—",
       icon: "⭐",
       color: "text-slate-800",
@@ -160,10 +167,10 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
         {/* Calendar card */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-800 text-sm">Attendance Overview</h3>
+            <h3 className="font-bold text-slate-800 text-sm">{t("attendanceOverview")}</h3>
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <button className="hover:text-blue-500">‹</button>
-              <span>{new Date().toLocaleString(undefined, { month: "long", year: "numeric" })}</span>
+              <span>{new Date().toLocaleString(i18n.language.startsWith("ar") ? "ar-EG" : "en-US", { month: "long", year: "numeric" })}</span>
               <button className="hover:text-blue-500">›</button>
             </div>
           </div>
@@ -171,10 +178,10 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
           {/* Summary chips — 2 col mobile → 4 col sm+ */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
             {[
-              { icon: "✅", label: "PRESENT", value: statsData?.data?.totalPresent ?? (records.filter(r => (r.status ?? "").toLowerCase() === "present").length), color: "text-green-600", bg: "bg-green-50" },
-              { icon: "⏰", label: "LATE", value: statsData?.data?.totalLate ?? (records.filter(r => (r.status ?? "").toLowerCase() === "late").length), color: "text-orange-500", bg: "bg-orange-50" },
-              { icon: "❌", label: "ABSENT", value: statsData?.data?.totalAbsent ?? (records.filter(r => (r.status ?? "").toLowerCase() === "absent").length), color: "text-red-500", bg: "bg-red-50" },
-              { icon: "🏖", label: "ON LEAVE", value: "—", color: "text-blue-500", bg: "bg-blue-50" },
+              { icon: "✅", label: t("present").toUpperCase(), value: statsData?.data?.totalPresent ?? (records.filter(r => (r.status ?? "").toLowerCase() === "present").length), color: "text-green-600", bg: "bg-green-50" },
+              { icon: "⏰", label: t("late").toUpperCase(), value: statsData?.data?.totalLate ?? (records.filter(r => (r.status ?? "").toLowerCase() === "late").length), color: "text-orange-500", bg: "bg-orange-50" },
+              { icon: "❌", label: t("absent").toUpperCase(), value: statsData?.data?.totalAbsent ?? (records.filter(r => (r.status ?? "").toLowerCase() === "absent").length), color: "text-red-500", bg: "bg-red-50" },
+              { icon: "🏖", label: t("onLeave").toUpperCase(), value: "—", color: "text-blue-500", bg: "bg-blue-50" },
             ].map((s) => (
               <div key={s.label} className={`${s.bg} rounded-xl p-2.5 sm:p-3 text-center`}>
                 <span className="text-base">{s.icon}</span>
@@ -187,7 +194,7 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
           {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-1 text-center">
             {weekDays.map((d) => (
-              <div key={d} className="text-[10px] text-slate-400 font-medium py-1">{d}</div>
+              <div key={d} className="text-[10px] text-slate-400 font-medium py-1">{t(d.toLowerCase())}</div>
             ))}
             {Array.from({ length: startOffset }).map((_, i) => <div key={`empty-${i}`} />)}
             {calendarDays.map((day) => (
@@ -204,28 +211,28 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
         {/* Quick Actions + Recent Requests */}
         <div className="flex flex-col gap-4">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <h3 className="font-bold text-slate-800 text-sm mb-3">Quick Actions</h3>
+            <h3 className="font-bold text-slate-800 text-sm mb-3">{t("quickActions")}</h3>
             <button className="w-full py-2.5 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
-              ✉ Contact Employee
+              ✉ {t("contactEmployee")}
             </button>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
-            <h3 className="font-bold text-slate-800 text-sm mb-3">Recent Attendance</h3>
+            <h3 className="font-bold text-slate-800 text-sm mb-3">{t("recentAttendance")}</h3>
 
             {/* loading / empty states */}
             {isLoading && (
-              <div className="py-6 text-center text-slate-400 text-sm">Loading attendance…</div>
+              <div className="py-6 text-center text-slate-400 text-sm">{t("loadingAttendance")}</div>
             )}
 
             {!isLoading && isError && (
               <div className="py-6 text-center text-red-400 text-sm">
-                Failed to load attendance. <button onClick={() => refetch()} className="underline">Retry</button>
+                {t("failedToLoadAttendance")} <button onClick={() => refetch()} className="underline">{t("retry")}</button>
               </div>
             )}
 
             {!isLoading && !isError && displayedRequests.length === 0 && (
-              <div className="py-6 text-center text-slate-400 text-sm">No attendance records found for this employee.</div>
+              <div className="py-6 text-center text-slate-400 text-sm">{t("noAttendanceRecordsFoundForEmployee")}</div>
             )}
 
             {!isLoading && !isError && displayedRequests.length > 0 && (
@@ -235,11 +242,11 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
                     <div className="flex items-start justify-between mb-0.5 gap-1">
                       <p className="text-xs font-semibold text-slate-700">{req.name}</p>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${statusBadge[req.status] ?? "bg-slate-100 text-slate-500"}`}>
-                        {req.status}
+                        {t(req.status.toLowerCase())}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-400">{req.dates}</p>
-                    <p className="text-[10px] text-slate-500">{req.days} Day · Notes: {req.reason}</p>
+                    <p className="text-[10px] text-slate-500">{req.days} {t("day")} · {t("notes")}: {req.reason}</p>
                   </div>
                 ))}
               </div>
@@ -249,7 +256,7 @@ export default function LeaveAttendancePage({ employeeId }: Props) {
               onClick={() => setShowAllRequests(!showAllRequests)}
               className="mt-3 w-full text-center text-xs text-blue-500 font-medium hover:underline"
             >
-              {showAllRequests ? "Hide Attendance History" : "View All Attendance History"}
+              {showAllRequests ? t("hideAttendanceHistory") : t("viewAllAttendanceHistory")}
             </button>
           </div>
         </div>

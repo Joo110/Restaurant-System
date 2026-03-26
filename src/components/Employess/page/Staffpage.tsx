@@ -1,17 +1,26 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import type { ApiBranch } from "../../layout/Topbar";
 import AddEmployeeModal from "../../Inventorys/page/Addemployeemodal";
 import { useEmployees, deleteEmployeeFn } from "../../Employess/hook/Useemployees";
 import { invalidateQuery } from "../../../hook/queryClient";
 
-const roleFilters = ["All Employees", "chef", "waiters", "cashier", "hr", "kitchen"];
+const roleFilters = [
+  { value: "All Employees", key: "allEmployees" },
+  { value: "chef", key: "chef" },
+  { value: "waiters", key: "waiters" },
+  { value: "cashier", key: "cashier" },
+  { value: "hr", key: "hr" },
+  { value: "kitchen", key: "kitchen" },
+];
 
 function isObjectId(value?: string) {
   return !!value && /^[a-f\d]{24}$/i.test(value);
 }
 
 export default function StaffPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   // ── Branch resolution ──
@@ -23,7 +32,6 @@ export default function StaffPage() {
     activeBranch?.id ??
     undefined;
 
-  // ابعت ObjectId حقيقي فقط، بدون أي أرقام وهمية
   const effectiveBranchId = isObjectId(effectiveBranchIdRaw) ? effectiveBranchIdRaw : undefined;
 
   const [activeRole, setActiveRole] = useState("All Employees");
@@ -108,7 +116,7 @@ export default function StaffPage() {
               </span>
               <input
                 type="text"
-                placeholder="Search by name, ID or Job title..."
+                placeholder={t("searchByNameIdOrJobTitle")}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -122,18 +130,18 @@ export default function StaffPage() {
             <div className="flex gap-2 overflow-x-auto pb-0.5">
               {roleFilters.map((r) => (
                 <button
-                  key={r}
+                  key={r.value}
                   onClick={() => {
-                    setActiveRole(r);
+                    setActiveRole(r.value);
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                    activeRole === r
+                    activeRole === r.value
                       ? "bg-blue-500 text-white"
                       : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  {r}
+                  {t(r.key)}
                 </button>
               ))}
             </div>
@@ -142,7 +150,7 @@ export default function StaffPage() {
               onClick={() => setShowAdd(true)}
               className="sm:ml-auto px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors whitespace-nowrap"
             >
-              + Add Employee
+              + {t("addEmployee")}
             </button>
           </div>
 
@@ -152,11 +160,11 @@ export default function StaffPage() {
               <table className="w-full text-sm min-w-[440px]">
                 <thead className="border-b border-slate-100 bg-slate-50">
                   <tr className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-                    <th className="py-3 px-4 text-left">Name</th>
-                    <th className="py-3 px-4 text-left">Job Title</th>
-                    <th className="py-3 px-4 text-left">Department</th>
-                    <th className="py-3 px-4 text-left">Status</th>
-                    <th className="py-3 px-4 text-left">Actions</th>
+                    <th className="py-3 px-4 text-left">{t("name")}</th>
+                    <th className="py-3 px-4 text-left">{t("jobTitle")}</th>
+                    <th className="py-3 px-4 text-left">{t("department")}</th>
+                    <th className="py-3 px-4 text-left">{t("status")}</th>
+                    <th className="py-3 px-4 text-left">{t("actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,7 +176,7 @@ export default function StaffPage() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                           </svg>
-                          Loading employees...
+                          {t("loadingEmployeesList")}
                         </div>
                       </td>
                     </tr>
@@ -178,9 +186,9 @@ export default function StaffPage() {
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-red-400 text-sm">
                         <div className="flex flex-col items-center gap-2">
-                          <span>Failed to load employees.</span>
+                          <span>{t("failedToLoadEmployees")}</span>
                           <button onClick={() => refetch()} className="text-blue-500 hover:underline text-xs">
-                            Try again
+                            {t("tryAgain")}
                           </button>
                         </div>
                       </td>
@@ -190,7 +198,7 @@ export default function StaffPage() {
                   {!isLoading && !isError && employees.length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-400 text-sm">
-                        No employees found.
+                        {t("noEmployeesFound")}
                       </td>
                     </tr>
                   )}
@@ -213,7 +221,7 @@ export default function StaffPage() {
                           <td className="py-3 px-4 text-slate-600 capitalize whitespace-nowrap">{emp.department ?? "—"}</td>
                           <td className="py-3 px-4">
                             <span className={`font-medium ${emp.status === "active" ? "text-green-500" : "text-slate-400"}`}>
-                              {emp.status ?? "Active"}
+                              {emp.status === "active" ? t("active") : t("inactive")}
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -221,7 +229,7 @@ export default function StaffPage() {
                               onClick={(e) => handleDeleteClick(e, id, emp.fullName)}
                               disabled={isDeleting}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title="Delete employee"
+                              title={t("deleteEmployee")}
                             >
                               {isDeleting ? (
                                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -250,10 +258,10 @@ export default function StaffPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 text-sm text-slate-500">
             <span>
               {totalDocs === 0 ? (
-                "No results"
+                t("noResults")
               ) : (
                 <>
-                  Showing <strong>{from}–{to}</strong> from <strong>{totalDocs}</strong> employees
+                  {t("showing")} <strong>{from}–{to}</strong> {t("from")} <strong>{totalDocs}</strong> {t("employees")}
                 </>
               )}
             </span>
@@ -290,19 +298,19 @@ export default function StaffPage() {
         {/* ── Right — Staff Overview ── */}
         <div className="w-full lg:w-56 shrink-0">
           <div className="bg-slate-900 text-white rounded-2xl p-5">
-            <h2 className="font-bold text-base mb-4">Staff Overview</h2>
+            <h2 className="font-bold text-base mb-4">{t("staffOverview")}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
               <div className="bg-slate-800 rounded-xl p-4">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Total Staff</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">{t("totalStaff")}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-3xl font-bold">{totalDocs}</span>
                   <span className="text-2xl">👥</span>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">Full-time & Part-time</p>
+                <p className="text-xs text-slate-400 mt-1">{t("fullTimeAndPartTime")}</p>
               </div>
 
               <div className="bg-slate-800 rounded-xl p-4">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">On Shift Now</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">{t("onShiftNow")}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-3xl font-bold">{employees.filter((e) => e.status === "active").length}</span>
                   <span className="text-2xl">⏱</span>
@@ -320,7 +328,7 @@ export default function StaffPage() {
                       />
                     </div>
                     <p className="text-xs text-slate-400">
-                      {Math.round((employees.filter((e) => e.status === "active").length / employees.length) * 100)}% of page active
+                      {Math.round((employees.filter((e) => e.status === "active").length / employees.length) * 100)}% {t("ofPageActive")}
                     </p>
                   </>
                 )}
@@ -361,9 +369,9 @@ export default function StaffPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-slate-800 text-base">Delete Employee</h3>
+                <h3 className="font-semibold text-slate-800 text-base">{t("deleteEmployee")}</h3>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  Are you sure you want to delete <strong>{targetEmployee.name}</strong>? This action cannot be undone.
+                  {t("deleteEmployeeConfirm", { name: targetEmployee.name })}
                 </p>
               </div>
             </div>
@@ -372,13 +380,13 @@ export default function StaffPage() {
                 onClick={() => setShowConfirm(false)}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={confirmDelete}
                 className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors"
               >
-                Delete
+                {t("delete")}
               </button>
             </div>
           </div>

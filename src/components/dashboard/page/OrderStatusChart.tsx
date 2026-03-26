@@ -1,5 +1,6 @@
 // src/components/dashboard/page/OrderStatusChart.tsx
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
 interface OrderStatusChartProps {
@@ -14,6 +15,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const OrderStatusChart: React.FC<OrderStatusChartProps> = ({ breakdown }) => {
+  const { t } = useTranslation();
+
   const chartData = breakdown.map((item) => ({
     name:  item.name  ?? item.status ?? "Unknown",
     value: item.value ?? item.count  ?? 0,
@@ -25,11 +28,11 @@ const OrderStatusChart: React.FC<OrderStatusChartProps> = ({ breakdown }) => {
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">
-        Order Status Breakdown
+        {t("dashboard.orderStatus.title")}
       </h2>
 
       {isEmpty ? (
-        <p className="text-xs text-gray-300 text-center py-8">No orders yet</p>
+        <p className="text-xs text-gray-300 text-center py-8">{t("dashboard.orderStatus.empty")}</p>
       ) : (
         <>
           <div className="flex justify-center">

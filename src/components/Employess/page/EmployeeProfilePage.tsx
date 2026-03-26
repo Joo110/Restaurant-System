@@ -1,5 +1,5 @@
-// src/components/Staff/page/EmployeeProfilePage.tsx
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import LeaveAttendancePage from "../page/LeaveAttendancePage";
 import { useEmployee } from "../../Employess/hook/Useemployees";
@@ -38,6 +38,7 @@ type Employee = {
 };
 
 export default function EmployeeProfilePage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
@@ -63,7 +64,7 @@ export default function EmployeeProfilePage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm">Loading profile...</p>
+          <p className="text-slate-400 text-sm">{t("loadingProfile")}</p>
         </div>
       </div>
     );
@@ -74,12 +75,12 @@ export default function EmployeeProfilePage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-slate-500 text-sm mb-3">Employee not found.</p>
+          <p className="text-slate-500 text-sm mb-3">{t("employeeNotFound")}</p>
           <button
             onClick={() => navigate("/dashboard/staff")}
             className="text-blue-500 text-sm underline"
           >
-            Back to Staff
+            {t("backToStaff")}
           </button>
         </div>
       </div>
@@ -95,7 +96,7 @@ export default function EmployeeProfilePage() {
     || "—";
 
   const joinDate = emp.joinDate
-    ? new Date(emp.joinDate).toLocaleDateString("en-GB")
+    ? new Date(emp.joinDate).toLocaleDateString(i18n.language.startsWith("ar") ? "ar-EG" : "en-GB")
     : "—";
 
   /** بيحول أي قيمة لـ string آمن — لو object بياخد منها الـ keys المهمة */
@@ -113,6 +114,11 @@ export default function EmployeeProfilePage() {
     return String(val);
   };
 
+  const translateMaybe = (val?: string | null) => {
+    if (!val || val === "—") return "—";
+    return t(val.toLowerCase());
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <div className="max-w-5xl mx-auto p-3 sm:p-6">
@@ -120,11 +126,11 @@ export default function EmployeeProfilePage() {
         {/* Breadcrumb */}
         <p className="text-xs text-slate-400 mb-4">
           <span className="hover:text-blue-500 cursor-pointer" onClick={() => navigate("/dashboard")}>
-            Home
+            {t("home")}
           </span>
           {" / "}
           <span className="hover:text-blue-500 cursor-pointer" onClick={() => navigate("/dashboard/staff")}>
-            Staff
+            {t("staff")}
           </span>
           {" / "}
           <span className="text-blue-500 font-medium">{fullName}</span>
@@ -147,7 +153,7 @@ export default function EmployeeProfilePage() {
               <div>
                 <h1 className="text-base sm:text-lg font-bold text-slate-900">{fullName}</h1>
                 <p className="text-sm text-slate-500 mb-1.5">
-                  {emp.role ?? (emp as any).position ?? "—"}
+                  {translateMaybe(emp.role ?? (emp as any).position)}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
@@ -155,7 +161,7 @@ export default function EmployeeProfilePage() {
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}>
-                    {emp.status === "active" ? "Active Status" : "Inactive"}
+                    {emp.status === "active" ? t("activeStatus") : t("inactive")}
                   </span>
                   {emp.employmentType && (
                     <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
@@ -164,7 +170,7 @@ export default function EmployeeProfilePage() {
                   )}
                   {emp.joinDate && (
                     <span className="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs font-semibold rounded-full">
-                      Joined {joinDate}
+                      {t("joined")} {joinDate}
                     </span>
                   )}
                 </div>
@@ -175,7 +181,7 @@ export default function EmployeeProfilePage() {
               onClick={() => navigate(`/dashboard/staff/${id}/edit`)}
               className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium hover:bg-slate-50 transition-colors whitespace-nowrap"
             >
-              ✏ Edit profile
+              ✏ {t("editProfile")}
             </button>
           </div>
 
@@ -191,7 +197,7 @@ export default function EmployeeProfilePage() {
                     : "text-slate-400 border-transparent hover:text-slate-600"
                 }`}
               >
-                {tab}
+                {tab === "Overview" ? t("overview") : t("leaveAndAttendance")}
               </button>
             ))}
           </div>
@@ -206,12 +212,12 @@ export default function EmployeeProfilePage() {
 
               {/* Contact Information */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
-                <h2 className="font-bold text-slate-800 text-sm mb-4">Contact Information</h2>
+                <h2 className="font-bold text-slate-800 text-sm mb-4">{t("contactInformation")}</h2>
                 <div className="space-y-4">
                   {[
-                    { icon: "✉",  label: "Email Address",       value: safeStr(emp.email),   sub: "Work"   },
-                    { icon: "📍", label: "Residential Address", value: safeStr(emp.address),  sub: null     },
-                    { icon: "📞", label: "Phone Number",        value: safeStr(emp.phone),    sub: "Mobile" },
+                    { icon: "✉", label: t("emailAddress"), value: safeStr(emp.email), sub: t("work") },
+                    { icon: "📍", label: t("residentialAddress"), value: safeStr(emp.address), sub: null },
+                    { icon: "📞", label: t("phoneNumber"), value: safeStr(emp.phone), sub: t("mobile") },
                   ].map((item) => (
                     <div key={item.label} className="flex items-start gap-3">
                       <span className="text-slate-400 mt-0.5 flex-shrink-0">{item.icon}</span>
@@ -227,29 +233,29 @@ export default function EmployeeProfilePage() {
 
               {/* Employment Details */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
-                <h2 className="font-bold text-slate-800 text-sm mb-4">Employment Details</h2>
+                <h2 className="font-bold text-slate-800 text-sm mb-4">{t("employmentDetails")}</h2>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Branch</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("branch")}</p>
                     <p className="text-sm text-slate-700 font-medium">
                       {safeStr((emp as any).branch?.name ?? emp.branch)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Role</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("role")}</p>
                     <p className="text-sm text-slate-700 font-medium">
-                      {safeStr(emp.role ?? (emp as any).position)}
+                      {translateMaybe(emp.role ?? (emp as any).position)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">ID Number</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("idNumber")}</p>
                     <p className="text-xs text-slate-700 font-medium">
                       {safeStr(emp.employeeId ?? emp.id)}
                     </p>
                   </div>
                 </div>
 
-                <p className="text-xs font-semibold text-slate-600 mb-2">Current Shift Schedule</p>
+                <p className="text-xs font-semibold text-slate-600 mb-2">{t("currentShiftSchedule")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {emp.schedule && emp.schedule.length > 0 ? (
                     emp.schedule.map((s: ScheduleItem, i: number) => (
@@ -261,7 +267,7 @@ export default function EmployeeProfilePage() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-slate-400">No schedule assigned</span>
+                    <span className="text-xs text-slate-400">{t("noScheduleAssigned")}</span>
                   )}
                 </div>
               </div>
@@ -269,31 +275,31 @@ export default function EmployeeProfilePage() {
 
             {/* Compensations */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
-              <h2 className="font-bold text-slate-800 text-sm mb-4">Compensations & Pay Details</h2>
+              <h2 className="font-bold text-slate-800 text-sm mb-4">{t("compensationsAndPayDetails")}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Base Salary</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("baseSalary")}</p>
                   <p className="text-lg sm:text-xl font-bold text-slate-800">
                     {emp.salary
                       ? `$${Number(emp.salary).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                       : "—"}
                   </p>
-                  <p className="text-[10px] text-slate-400">/ Month</p>
+                  <p className="text-[10px] text-slate-400">/ {t("month")}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Pay Grade</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("payGrade")}</p>
                   <p className="text-sm font-semibold text-slate-700 mt-1">
                     {emp.payGrade ?? emp.role ?? "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Pay Frequency</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("payFrequency")}</p>
                   <p className="text-sm font-semibold text-slate-700 mt-1">
-                    {emp.payFrequency ?? "Monthly"}
+                    {emp.payFrequency ?? t("monthly")}
                   </p>
                   {emp.nextPayday && (
                     <p className="text-[10px] text-slate-400">
-                      Next Payday:{" "}
+                      {t("nextPayday")}:{" "}
                       {new Date(emp.nextPayday).toLocaleDateString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
                       })}
@@ -301,7 +307,7 @@ export default function EmployeeProfilePage() {
                   )}
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Bank Account</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{t("bankAccount")}</p>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-slate-500">🏦</span>
                     <p className="text-xs sm:text-sm font-semibold text-slate-700">
@@ -316,20 +322,20 @@ export default function EmployeeProfilePage() {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 mt-4 flex items-center gap-1 flex-wrap">
-                🔒 Sensitive financial data is masked. Use 'Edit pay & Pay Details' to review full information within 2FA.
+                🔒 {t("sensitiveFinancialDataMasked")}
               </p>
             </div>
 
             {/* Attendance Quick Stats */}
             {!statsLoading && attendanceStats && (
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
-                <h2 className="font-bold text-slate-800 text-sm mb-4">Attendance Summary</h2>
+                <h2 className="font-bold text-slate-800 text-sm mb-4">{t("attendanceSummary")}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {[
-                    { label: "Present Days",   value: attendanceStats.data?.totalPresent  ?? (attendanceStats as any).totalPresent  ?? "—", color: "text-green-600"  },
-                    { label: "Absent Days",    value: attendanceStats.data?.totalAbsent   ?? (attendanceStats as any).totalAbsent   ?? "—", color: "text-red-500"    },
-                    { label: "Late Check-ins", value: attendanceStats.data?.totalLate     ?? (attendanceStats as any).totalLate     ?? "—", color: "text-orange-500" },
-                    { label: "Overtime (h)",   value: attendanceStats.data?.totalOvertimeHours ?? (attendanceStats as any).totalOvertimeHours ?? "—", color: "text-blue-500" },
+                    { label: t("presentDays"), value: attendanceStats.data?.totalPresent ?? (attendanceStats as any).totalPresent ?? "—", color: "text-green-600" },
+                    { label: t("absentDays"), value: attendanceStats.data?.totalAbsent ?? (attendanceStats as any).totalAbsent ?? "—", color: "text-red-500" },
+                    { label: t("lateCheckIns"), value: attendanceStats.data?.totalLate ?? (attendanceStats as any).totalLate ?? "—", color: "text-orange-500" },
+                    { label: t("overtimeHours"), value: attendanceStats.data?.totalOvertimeHours ?? (attendanceStats as any).totalOvertimeHours ?? "—", color: "text-blue-500" },
                   ].map((stat) => (
                     <div key={stat.label}>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">{stat.label}</p>
