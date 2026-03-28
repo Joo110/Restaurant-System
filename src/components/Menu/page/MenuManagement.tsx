@@ -1,21 +1,19 @@
 import { useState, useMemo, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Search, Plus, Edit2, Trash2, X, RefreshCw, AlertCircle } from "lucide-react";
-import { useItems } from "../hook/useItems"; // عدّل المسار حسب مشروعك
-import type { ItemsQueryParams } from "../services/itemService"; // عدّل المسار حسب مشروعك
-import { useDeleteItemMutation } from "../hook/useItemMutations"; // عدّل المسار حسب مشروعك
-import type { ApiBranch } from "../../layout/Topbar"; // يعتمد المسار على تنظيم مشروعك
+import { useTranslation } from "react-i18next";
+import { useItems } from "../hook/useItems";
+import type { ItemsQueryParams } from "../services/itemService";
+import { useDeleteItemMutation } from "../hook/useItemMutations";
+import type { ApiBranch } from "../../layout/Topbar";
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
-
-/** Raw shape returned by the API */
 interface ApiItem {
   id: string;
   itemId: number;
   name: string;
   price: number;
   description: string;
-  category: "starters" | "mains" | "desserts" | "drinks"; // lowercase from API
+  category: "starters" | "mains" | "desserts" | "drinks";
   isAvailable: boolean;
   image?: string;
   branch?: string;
@@ -25,22 +23,20 @@ interface ApiItem {
   updatedAt?: string;
 }
 
-/** Normalised shape used throughout the component */
 export interface MenuItem {
-  id: number;          // mapped from itemId
-  _id: string;         // original mongo id
+  id: number;
+  _id: string;
   name: string;
   price: number;
   description: string;
-  category: "Starters" | "Mains" | "Desserts" | "Drinks"; // capitalised
-  available: boolean;  // mapped from isAvailable
+  category: "Starters" | "Mains" | "Desserts" | "Drinks";
+  available: boolean;
   image?: string;
   branch?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-/** Normalise one API item → MenuItem */
 function normaliseItem(raw: ApiItem): MenuItem {
   const CAT_MAP: Record<string, MenuItem["category"]> = {
     starters: "Starters",
@@ -69,13 +65,10 @@ type Category = (typeof CATEGORIES)[number];
 interface MenuManagementProps {
   onAddItem: () => void;
   onEditItem: (item: MenuItem) => void;
-  /** optional branch id (mongo _id) passed from parent so add-modal can include it */
   branchId?: string;
-  /** incrementing signal to refetch data */
   refreshTrigger?: number;
 }
 
-/* ─── Food Image Placeholder ─────────────────────────────────────────────── */
 const CATEGORY_EMOJI: Record<string, string> = {
   Starters: "🥗",
   Mains: "🍽️",
@@ -92,7 +85,6 @@ const FoodImage = ({ category, image }: { category?: string; image?: string }) =
     <div className="w-full h-28 sm:h-36 bg-gray-100 rounded-lg" />
   );
 
-/* ─── Skeleton Card ───────────────────────────────────────────────────────── */
 const SkeletonCard = () => (
   <div className="bg-white rounded-xl border border-gray-100 p-2.5 sm:p-3 animate-pulse">
     <div className="w-full h-28 sm:h-36 bg-gray-200 rounded-lg mb-3" />
@@ -109,18 +101,16 @@ const SkeletonCard = () => (
   </div>
 );
 
-/* ─── Main Component ──────────────────────────────────────────────────────── */
 export default function MenuManagement({ onAddItem, onEditItem, branchId, refreshTrigger }: MenuManagementProps) {
+  const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<Category>("All Items");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Read activeBranch from Outlet context as a fallback if prop not passed
   const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranchFromOutlet = outlet?.activeBranch ?? null;
 
-  // derive an effective branch id (uses prop first, then outlet)
   const effectiveBranchId =
     branchId ??
     activeBranchFromOutlet?.id ??
@@ -132,18 +122,14 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
   });
 
   useEffect(() => {
-    // debug: ensure branchId is being received by this component (prop or outlet)
-    // eslint-disable-next-line no-console
     console.log("MenuManagement - received branchId (prop):", branchId);
-    // eslint-disable-next-line no-console
     console.log("MenuManagement - activeBranchFromOutlet:", activeBranchFromOutlet);
-    // eslint-disable-next-line no-console
     console.log("MenuManagement - effectiveBranchId (derived):", effectiveBranchId);
   }, [branchId, activeBranchFromOutlet, effectiveBranchId]);
 
   const handleDelete = async (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("deleteItemConfirm", { name: item.name }))) return;
     setDeletingId(item._id);
     try {
       await deleteItem(item._id);
@@ -153,7 +139,6 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
     }
   };
 
-  // Build query params — only pass category if not "All Items"
   const queryParams = useMemo<ItemsQueryParams>(() => {
     const p: ItemsQueryParams = {};
     if (activeCategory !== "All Items") p.category = activeCategory.toLowerCase();
@@ -169,14 +154,11 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
     }
   }, [refreshTrigger, refetch]);
 
-  // API returns { data: [...], stats: { byCategory: {...} }, ... }
-  // Normalise raw API items into our MenuItem shape
   const allItems: MenuItem[] = useMemo(
     () => ((data?.data ?? []) as ApiItem[]).map(normaliseItem),
     [data]
   );
 
-  // Client-side safety filter (server already filters, but guard against stale data)
   const items: MenuItem[] = useMemo(() => {
     return allItems.filter((item) => {
       const matchCat = activeCategory === "All Items" || item.category === activeCategory;
@@ -184,28 +166,25 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
       return matchCat && matchSearch;
     });
   }, [allItems, activeCategory, searchQuery]);
-  // Use server stats (total across all pages) if available, else count locally
+
   const apiStats = data?.stats?.byCategory;
   const categoryCounts = useMemo(
     () => ({
       Starters: apiStats?.starters ?? allItems.filter((i) => i.category === "Starters").length,
-      Mains:    apiStats?.mains    ?? allItems.filter((i) => i.category === "Mains").length,
+      Mains: apiStats?.mains ?? allItems.filter((i) => i.category === "Mains").length,
       Desserts: apiStats?.desserts ?? allItems.filter((i) => i.category === "Desserts").length,
-      Drinks:   apiStats?.drinks   ?? allItems.filter((i) => i.category === "Drinks").length,
+      Drinks: apiStats?.drinks ?? allItems.filter((i) => i.category === "Drinks").length,
     }),
     [apiStats, allItems]
   );
 
-  // Most profitable category (most items as proxy — replace with real revenue if available)
   const mostProfitableCategory = useMemo(() => {
     const entries = Object.entries(categoryCounts) as [string, number][];
     return entries.reduce((a, b) => (b[1] > a[1] ? b : a), entries[0] ?? ["Mains", 0]);
   }, [categoryCounts]);
 
   const totalItems = allItems.length || 1;
-  const mostProfitablePercent = Math.round(
-    ((mostProfitableCategory[1] as number) / totalItems) * 100
-  );
+  const mostProfitablePercent = Math.round(((mostProfitableCategory[1] as number) / totalItems) * 100);
 
   const unavailableItems = allItems.filter((i) => !i.available);
 
@@ -213,32 +192,26 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
     setSelectedItem((prev) => (prev?.id === item.id ? null : item));
   };
 
-  // Guarded add button: require effectiveBranchId before calling parent onAddItem
-const handleAddClick = () => {
-  console.log("Add clicked!");
-  onAddItem(); // بتفتح المودال في المفروض
-  console.log("Modal state should now be true");
-};
+  const handleAddClick = () => {
+    onAddItem();
+  };
+
   return (
     <div className="flex h-full bg-gray-50 overflow-hidden relative">
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <div className="flex-1 overflow-y-auto p-3 sm:p-5">
-
-          {/* ── Top bar ── */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
-            {/* Search */}
             <div className="relative w-full sm:w-56 flex-shrink-0">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search menu items..."
+                placeholder={t("searchMenuItems")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
               />
             </div>
 
-            {/* Category pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-shrink-0">
               {CATEGORIES.map((cat) => (
                 <button
@@ -250,18 +223,17 @@ const handleAddClick = () => {
                       : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                   }`}
                 >
-                  {cat}
+                  {cat === "All Items" ? t("allItems") : t(cat.toLowerCase())}
                 </button>
               ))}
             </div>
 
-            {/* Refetch + Add */}
             <div className="sm:ml-auto flex items-center gap-2 self-start sm:self-auto">
               <button
                 onClick={() => refetch()}
                 disabled={isLoading}
                 className="flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                title="Refresh"
+                title={t("refresh")}
               >
                 <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
               </button>
@@ -270,26 +242,24 @@ const handleAddClick = () => {
                 className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
               >
                 <Plus size={16} />
-                Add New Item
+                {t("addNewItem")}
               </button>
             </div>
           </div>
 
-          {/* ── Error State ── */}
           {isError && (
             <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-red-700">
               <AlertCircle size={18} className="shrink-0" />
               <div className="text-sm">
-                <span className="font-semibold">Failed to load items.</span>{" "}
-                {(error as Error)?.message ?? "Unknown error."}{" "}
+                <span className="font-semibold">{t("failedToLoadItems")}</span>{" "}
+                {(error as Error)?.message ?? t("unknownError")}{" "}
                 <button onClick={() => refetch()} className="underline font-medium hover:no-underline">
-                  Try again
+                  {t("tryAgain")}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Grid ── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {isLoading
               ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
@@ -324,7 +294,7 @@ const handleAddClick = () => {
                             item.available ? "text-green-500" : "text-red-500"
                           }`}
                         >
-                          {item.available ? "Available" : "Unavailable"}
+                          {item.available ? t("available") : t("unavailable")}
                         </span>
                         <div className="flex items-center gap-0.5 sm:gap-1">
                           <button
@@ -341,9 +311,11 @@ const handleAddClick = () => {
                             disabled={deletingId === item._id}
                             className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
                           >
-                            {deletingId === item._id
-                              ? <span className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                              : <Trash2 size={12} />}
+                            {deletingId === item._id ? (
+                              <span className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 size={12} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -351,22 +323,19 @@ const handleAddClick = () => {
                   </div>
                 ))}
 
-            {/* Empty state */}
             {!isLoading && !isError && items.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
                 <span className="text-5xl mb-3">🍽️</span>
-                <p className="text-sm font-medium">No items found</p>
-                <p className="text-xs mt-1">Try a different category or search term</p>
+                <p className="text-sm font-medium">{t("noItemsFound")}</p>
+                <p className="text-xs mt-1">{t("tryDifferentCategoryOrSearchTerm")}</p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── Quick Stats Panel ── */}
       {selectedItem && (
         <>
-          {/* Desktop aside */}
           <aside className="hidden lg:flex w-64 bg-gray-900 text-white p-5 shrink-0 overflow-y-auto flex-col">
             <QuickStats
               selectedItem={selectedItem}
@@ -378,7 +347,6 @@ const handleAddClick = () => {
             />
           </aside>
 
-          {/* Mobile: bottom sheet */}
           <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-gray-900 text-white rounded-t-2xl p-5 shadow-2xl max-h-[70vh] overflow-y-auto">
             <QuickStats
               selectedItem={selectedItem}
@@ -395,7 +363,6 @@ const handleAddClick = () => {
   );
 }
 
-/* ─── Quick Stats Sub-component ──────────────────────────────────────────── */
 function QuickStats({
   selectedItem,
   categoryCounts,
@@ -411,11 +378,12 @@ function QuickStats({
   unavailableItems: MenuItem[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-base font-bold">Quick Stats</h2>
+        <h2 className="text-base font-bold">{t("quickStats")}</h2>
         <button
           onClick={onClose}
           className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white rounded-md transition-colors"
@@ -423,55 +391,48 @@ function QuickStats({
           <X size={14} />
         </button>
       </div>
-      <p className="text-xs text-gray-400 mb-4">Most Profitable</p>
+      <p className="text-xs text-gray-400 mb-4">{t("mostProfitable")}</p>
 
-      {/* ── Selected Item Details ── */}
       <div className="bg-gray-800 rounded-xl p-3 mb-5">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-9 h-9 rounded-lg bg-gray-700 overflow-hidden flex items-center justify-center text-lg shrink-0">
-            {selectedItem.image
-              ? <img src={selectedItem.image} alt={selectedItem.name} className="w-full h-full object-cover" />
-              : CATEGORY_EMOJI[selectedItem.category] ?? "🍴"}
+            {selectedItem.image ? (
+              <img src={selectedItem.image} alt={selectedItem.name} className="w-full h-full object-cover" />
+            ) : (
+              CATEGORY_EMOJI[selectedItem.category] ?? "🍴"
+            )}
           </div>
           <div className="min-w-0">
             <div className="text-sm font-semibold truncate">{selectedItem.name}</div>
-            <div
-              className={`text-[10px] mt-0.5 font-medium ${
-                selectedItem.available ? "text-green-400" : "text-red-400"
-              }`}
-            >
-              {selectedItem.available ? "Available" : "Unavailable"} · ${selectedItem.price}
+            <div className={`text-[10px] mt-0.5 font-medium ${selectedItem.available ? "text-green-400" : "text-red-400"}`}>
+              {selectedItem.available ? t("available") : t("unavailable")} · ${selectedItem.price}
             </div>
           </div>
         </div>
 
-        {/* Category badge */}
         <div className="flex items-center gap-1.5 mb-2">
-          <span className="text-[10px] text-gray-400">Category:</span>
+          <span className="text-[10px] text-gray-400">{t("category")}:</span>
           <span className="text-[10px] font-semibold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full">
-            {selectedItem.category}
+            {t(selectedItem.category.toLowerCase())}
           </span>
         </div>
 
-        {/* Description */}
         {selectedItem.description && (
           <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-3">
             {selectedItem.description}
           </p>
         )}
 
-        {/* Price highlight */}
         <div className="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between">
-          <span className="text-[10px] text-gray-400">Price</span>
+          <span className="text-[10px] text-gray-400">{t("price")}</span>
           <span className="text-base font-bold text-blue-400">${selectedItem.price}</span>
         </div>
       </div>
 
-      {/* ── Most Profitable Category ── */}
       <div className="mb-5">
-        <div className="text-xl font-bold mb-1">{mostProfitableCategory}</div>
+        <div className="text-xl font-bold mb-1">{t(mostProfitableCategory.toLowerCase())}</div>
         <div className="text-blue-400 font-semibold text-sm mb-2">
-          {mostProfitablePercent}% of total items
+          {mostProfitablePercent}% {t("ofTotalItems")}
         </div>
         <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
           <div
@@ -481,15 +442,14 @@ function QuickStats({
         </div>
       </div>
 
-      {/* ── Category Counts ── */}
       <div className="mb-6">
-        <p className="text-xs text-gray-400 mb-3">Item Count By Category</p>
+        <p className="text-xs text-gray-400 mb-3">{t("itemCountByCategory")}</p>
         <div className="flex flex-col gap-2">
           {Object.entries(categoryCounts).map(([cat, count]) => (
             <div key={cat} className="flex items-center justify-between text-sm">
               <span className="text-gray-400 flex items-center gap-1.5">
                 <span>{CATEGORY_EMOJI[cat] ?? "🍴"}</span>
-                {cat}
+                {t(cat.toLowerCase())}
               </span>
               <span className="font-bold text-white">{count}</span>
             </div>
@@ -497,27 +457,25 @@ function QuickStats({
         </div>
       </div>
 
-      {/* ── Unavailable Items ── */}
       <div>
         <p className="text-xs text-gray-400 mb-3">
-          Currently Unavailable{" "}
+          {t("currentlyUnavailable")}{" "}
           {unavailableItems.length > 0 && (
             <span className="text-red-400 font-semibold">({unavailableItems.length})</span>
           )}
         </p>
         {unavailableItems.length === 0 ? (
-          <p className="text-xs text-gray-500 italic">All items are available ✓</p>
+          <p className="text-xs text-gray-500 italic">{t("allItemsAreAvailable")}</p>
         ) : (
           <div className="flex flex-col gap-2">
             {unavailableItems.map((item) => (
               <div key={item.id} className="bg-gray-800 rounded-xl p-3 flex items-start gap-2">
                 <div className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center text-sm shrink-0">
-                  {CATEGORY_EMOJI[item.category] ?? "🍴"
-                    }
+                  {CATEGORY_EMOJI[item.category] ?? "🍴"}
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-semibold">{item.name}</div>
-                  <div className="text-[10px] text-red-400 mt-0.5">${item.price} · {item.category}</div>
+                  <div className="text-[10px] text-red-400 mt-0.5">${item.price} · {t(item.category.toLowerCase())}</div>
                   {item.description && (
                     <div className="text-[10px] text-gray-500 mt-0.5 truncate">{item.description}</div>
                   )}

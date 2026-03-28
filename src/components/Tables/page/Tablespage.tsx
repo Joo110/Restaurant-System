@@ -1,5 +1,6 @@
 // src/components/Tables/page/TablesPage.tsx
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, MoreHorizontal } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import AddTableModal    from "../page/Addtablemodal";
@@ -23,12 +24,6 @@ const STATUS_BADGE: Record<string, string> = {
   occupied:  "bg-pink-100   text-pink-700",
 };
 
-const STATUS_BTN: Record<string, { label: string; style: string }> = {
-  reserved:  { label: "Check In",     style: "bg-yellow-400 hover:bg-yellow-500 text-white" },
-  available: { label: "Assign Table", style: "bg-green-500  hover:bg-green-600  text-white" },
-  occupied:  { label: "Release",      style: "bg-purple-500 hover:bg-purple-600 text-white" },
-};
-
 /* ── TableCard ──────────────────────────────────────── */
 const TableCard: React.FC<{
   table:     any;
@@ -36,8 +31,16 @@ const TableCard: React.FC<{
   onCheckIn: (id: string, tableNumber: string) => void;
   onRelease: (id: string) => void;
 }> = ({ table, onAssign, onCheckIn, onRelease }) => {
+  const { t } = useTranslation();
   const status = table.status?.toLowerCase() ?? "available";
-  const btn    = STATUS_BTN[status] ?? STATUS_BTN["available"];
+
+  const STATUS_BTN: Record<string, { label: string; style: string }> = {
+    reserved:  { label: t("tables.page.card.checkIn"),    style: "bg-yellow-400 hover:bg-yellow-500 text-white" },
+    available: { label: t("tables.page.card.assignTable"),style: "bg-green-500  hover:bg-green-600  text-white" },
+    occupied:  { label: t("tables.page.card.release"),    style: "bg-purple-500 hover:bg-purple-600 text-white" },
+  };
+
+  const btn = STATUS_BTN[status] ?? STATUS_BTN["available"];
 
   const handlePrimary = () => {
     if (status === "available") onAssign(table.id, table.tableNumber);
@@ -51,7 +54,9 @@ const TableCard: React.FC<{
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="text-base sm:text-lg font-bold text-slate-900">{table.tableNumber}</h3>
-          <p className="text-[11px] sm:text-xs text-slate-400">Capacity: {table.capacity}</p>
+          <p className="text-[11px] sm:text-xs text-slate-400">
+            {t("tables.page.card.capacity")} {table.capacity}
+          </p>
         </div>
         <span className={`text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-full capitalize ${STATUS_BADGE[status] ?? "bg-gray-100 text-gray-600"}`}>
           {table.status}
@@ -67,7 +72,7 @@ const TableCard: React.FC<{
               <line x1="24" y1="14" x2="24" y2="38" stroke="#cbd5e1" strokeWidth="2"/>
               <line x1="14" y1="34" x2="34" y2="34" stroke="#cbd5e1" strokeWidth="2"/>
             </svg>
-            <p className="text-xs text-slate-400 mt-2">Ready for guests</p>
+            <p className="text-xs text-slate-400 mt-2">{t("tables.page.card.readyForGuests")}</p>
           </div>
         ) : (
           <div className="space-y-1.5 mb-3">
@@ -75,7 +80,7 @@ const TableCard: React.FC<{
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">👤</div>
                 <div className="min-w-0">
-                  <p className="text-[9px] sm:text-[10px] text-slate-400">Guest</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400">{t("tables.page.card.guest")}</p>
                   <p className="font-medium text-[11px] sm:text-xs text-slate-800 truncate">
                     {table.currentCustomer.name}
                   </p>
@@ -86,7 +91,7 @@ const TableCard: React.FC<{
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">🕐</div>
                 <div>
-                  <p className="text-[9px] sm:text-[10px] text-slate-400">Reserved For</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400">{t("tables.page.card.reservedFor")}</p>
                   <p className="font-medium text-[11px] sm:text-xs text-slate-800">
                     {new Date(table.reservedFor).toLocaleString("en-GB", {
                       hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short",
@@ -98,7 +103,7 @@ const TableCard: React.FC<{
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">📍</div>
               <div>
-                <p className="text-[9px] sm:text-[10px] text-slate-400">Location</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400">{t("tables.page.card.location")}</p>
                 <p className="font-medium text-[11px] sm:text-xs text-slate-800 capitalize">{table.location}</p>
               </div>
             </div>
@@ -122,6 +127,8 @@ const TableCard: React.FC<{
 
 /* ══════════════════════════════════════════════════ */
 export default function TablesPage() {
+  const { t } = useTranslation();
+
   // ── Branch resolution ──
   const outlet            = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranch      = outlet?.activeBranch ?? null;
@@ -134,8 +141,6 @@ export default function TablesPage() {
   const [statusFilter,  setStatusFilter]  = useState<string>("");
   const [showAddModal,  setShowAddModal]  = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  // ← بنحفظ { id: MongoDB_id, tableNumber: "T01" } عشان نبعت الاتنين للـ modal
   const [assigningTable, setAssigningTable] = useState<{ id: string; tableNumber: string } | null>(null);
 
   // ── Data ──
@@ -150,7 +155,6 @@ export default function TablesPage() {
   const stats  = statsData?.data;
   const tables = data?.data ?? [];
 
-  // ── Client-side search ──
   const filtered = tables.filter((t) =>
     t.tableNumber?.toLowerCase().includes(search.toLowerCase())
   );
@@ -162,10 +166,10 @@ export default function TablesPage() {
   const reserved  = stats?.reserved  ?? tables.filter((t) => t.status === "reserved").length;
 
   const statCards = [
-    { label: "Total Tables", value: total,     pct: 100,                                   color: "bg-blue-600"   },
-    { label: "Occupied",     value: occupied,  pct: total ? (occupied  / total) * 100 : 0, color: "bg-red-500"    },
-    { label: "Available",    value: available, pct: total ? (available / total) * 100 : 0, color: "bg-green-500"  },
-    { label: "Reserved",     value: reserved,  pct: total ? (reserved  / total) * 100 : 0, color: "bg-yellow-400" },
+    { label: t("tables.page.stats.totalTables"), value: total,     pct: 100,                                   color: "bg-blue-600"   },
+    { label: t("tables.page.stats.occupied"),    value: occupied,  pct: total ? (occupied  / total) * 100 : 0, color: "bg-red-500"    },
+    { label: t("tables.page.stats.available"),   value: available, pct: total ? (available / total) * 100 : 0, color: "bg-green-500"  },
+    { label: t("tables.page.stats.reserved"),    value: reserved,  pct: total ? (reserved  / total) * 100 : 0, color: "bg-yellow-400" },
   ];
 
   // ── Handlers ──
@@ -187,7 +191,6 @@ export default function TablesPage() {
     }
   };
 
-  // الـ AssignGuestModal بيعمل الـ API call جواه، هنا بس نعمل refetch
   const handleAssignConfirm = () => {
     invalidateQuery("tables");
     refetch();
@@ -206,6 +209,8 @@ export default function TablesPage() {
       setActionLoading(null);
     }
   };
+
+  const tb = "tables.page.toolbar";
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -229,19 +234,28 @@ export default function TablesPage() {
           <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              type="text" placeholder="Search by Table..."
-              value={search} onChange={(e) => setSearch(e.target.value)}
+              type="text"
+              placeholder={t(`${tb}.searchPlaceholder`)}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 pr-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex gap-1.5 sm:gap-2 flex-wrap">
             {(["All Tables", "indoor", "outdoor"] as const).map((f) => (
-              <button key={f} onClick={() => setAreaFilter(f)}
+              <button
+                key={f}
+                onClick={() => setAreaFilter(f)}
                 className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium capitalize transition-all ${
                   areaFilter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}>
-                {f === "All Tables" ? "All Tables" : f}
+                }`}
+              >
+                {f === "All Tables"
+                  ? t(`${tb}.allTables`)
+                  : f === "indoor"
+                  ? t(`${tb}.indoor`)
+                  : t(`${tb}.outdoor`)}
               </button>
             ))}
           </div>
@@ -251,24 +265,24 @@ export default function TablesPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-600 bg-white outline-none"
           >
-            <option value="">All Status</option>
-            <option value="available">Available</option>
-            <option value="occupied">Occupied</option>
-            <option value="reserved">Reserved</option>
+            <option value="">{t(`${tb}.allStatus`)}</option>
+            <option value="available">{t(`${tb}.statusAvailable`)}</option>
+            <option value="occupied">{t(`${tb}.statusOccupied`)}</option>
+            <option value="reserved">{t(`${tb}.statusReserved`)}</option>
           </select>
 
           <button
             onClick={() => setShowAddModal(true)}
             className="w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 text-white text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap"
           >
-            + Add New Table
+            {t(`${tb}.addNewTable`)}
           </button>
         </div>
       </div>
 
       {/* ── Tables Grid ── */}
       {isLoading ? (
-        <p className="text-center text-slate-400 text-sm py-12 animate-pulse">Loading tables...</p>
+        <p className="text-center text-slate-400 text-sm py-12 animate-pulse">{t("tables.page.loading")}</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           {filtered.map((table) => (
@@ -285,7 +299,7 @@ export default function TablesPage() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="col-span-3 text-center text-slate-400 text-sm py-12">No tables found.</p>
+            <p className="col-span-3 text-center text-slate-400 text-sm py-12">{t("tables.page.noTables")}</p>
           )}
         </div>
       )}
@@ -298,10 +312,6 @@ export default function TablesPage() {
         branchId={effectiveBranchId}
       />
 
-      {/*
-        tableId  → للعرض فقط (T01, T02...)
-        realId   → الـ MongoDB _id اللي بيتبعت للـ API
-      */}
       <AssignGuestModal
         isOpen={!!assigningTable}
         tableId={assigningTable?.tableNumber ?? ""}

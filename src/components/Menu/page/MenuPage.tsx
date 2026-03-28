@@ -10,7 +10,6 @@ type LayoutContext = {
   activeBranch?: ApiBranch | null;
 };
 
-// ── helper: اقرأ الـ authUser من الكوكيز ──────────────────────────────────────
 function getAuthUser(): { role?: string; branchId?: string; name?: string } | null {
   try {
     const raw = Cookies.get("authUser");
@@ -28,8 +27,6 @@ export default function MenuPage() {
   const authUser = getAuthUser();
   const isManager = authUser?.role === "manager";
 
-  // لو manager — خد الـ branchId من الكوكيز
-  // لو admin/غيره — خده من الـ activeBranch اللي جاي من الـ Topbar
   const selectedBranchId: string | undefined = isManager
     ? authUser?.branchId
     : getBranchId(activeBranch ?? undefined);
@@ -41,8 +38,8 @@ export default function MenuPage() {
   }, [activeBranch, selectedBranchId, isManager]);
 
   const handleOpenAdd = () => {
-  setAddOpen(true);
-};
+    setAddOpen(true);
+  };
 
   return (
     <>

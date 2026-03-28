@@ -1,6 +1,7 @@
 // src/components/Orders/EditOrder.tsx
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getOrderByIdFn, updateOrderFn } from "../hook/useOrders";
 import { useItems } from "../../Menu/hook/useItems";
 import { invalidateQuery } from "../../../hook/queryClient";
@@ -14,15 +15,16 @@ type LocalItem = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function EditOrder() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { id }   = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
 
   /* ── state ── */
-  const [items,         setItems]         = useState<LocalItem[]>([]);
-  const [instructions,  setInstructions]  = useState("");
-  const [tableNumber,   setTableNumber]   = useState("");
+  const [items, setItems] = useState<LocalItem[]>([]);
+  const [instructions, setInstructions] = useState("");
+  const [tableNumber, setTableNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [orderMeta,     setOrderMeta]     = useState<{
+  const [orderMeta, setOrderMeta] = useState<{
     orderNumber?: string;
     branch?: string;
     orderType?: string;
@@ -35,11 +37,11 @@ export default function EditOrder() {
     createdAt?: string;
     updatedAt?: string;
   }>({});
-  const [isLoading,    setIsLoading]    = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddItems, setShowAddItems] = useState(false);
-  const [addSearch,    setAddSearch]    = useState("");
-  const [error,        setError]        = useState<string | null>(null);
+  const [addSearch, setAddSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   /* ── load existing order ── */
   useEffect(() => {
@@ -52,10 +54,10 @@ export default function EditOrder() {
 
         // Map items — API shape: { id, name, quantity, price, totalPrice }
         const mapped: LocalItem[] = (order.items ?? []).map((i: any) => ({
-          id:        i.id        ?? i._id    ?? i.itemId ?? "",
-          name:      i.name      ?? i.itemId ?? "Item",
-          qty:       i.quantity  ?? 1,
-          unitPrice: i.price     ?? 0,
+          id: i.id ?? i._id ?? i.itemId ?? "",
+          name: i.name ?? i.itemId ?? "Item",
+          qty: i.quantity ?? 1,
+          unitPrice: i.price ?? 0,
         }));
 
         setItems(mapped);
@@ -66,21 +68,21 @@ export default function EditOrder() {
         // Store read-only meta for display
         setOrderMeta({
           orderNumber: order.orderNumber,
-          branch:      order.branch,
-          orderType:   order.orderType,
-          status:      order.status,
-          subtotal:    order.subtotal,
-          tax:         order.tax,
-          total:       order.total,
-          createdBy:   order.createdBy,
-          updatedBy:   order.updatedBy,
-          createdAt:   order.createdAt,
-          updatedAt:   order.updatedAt,
+          branch: order.branch,
+          orderType: order.orderType,
+          status: order.status,
+          subtotal: order.subtotal,
+          tax: order.tax,
+          total: order.total,
+          createdBy: order.createdBy,
+          updatedBy: order.updatedBy,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
         });
       })
-      .catch(() => setError("Failed to load order."))
+      .catch(() => setError(t("orders.edit.failedToLoadOrder")))
       .finally(() => setIsLoading(false));
-  }, [id]);
+  }, [id, t]);
 
   /* ── menu for add-items panel ── */
   const { data: menuData } = useItems({
@@ -88,14 +90,18 @@ export default function EditOrder() {
     limit: 30,
   });
   const menuItems = (menuData?.data ?? []) as {
-    _id?: string; id?: string; name: string; price: number; image?: string;
+    _id?: string;
+    id?: string;
+    name: string;
+    price: number;
+    image?: string;
   }[];
 
   /* ── cart actions ── */
   const updateQty = (itemId: string, delta: number) => {
     setItems((prev) =>
       prev
-        .map((i) => i.id === itemId ? { ...i, qty: i.qty + delta } : i)
+        .map((i) => (i.id === itemId ? { ...i, qty: i.qty + delta } : i))
         .filter((i) => i.qty > 0)
     );
   };
@@ -104,15 +110,15 @@ export default function EditOrder() {
     const mid = menu._id ?? menu.id ?? "";
     setItems((prev) => {
       const ex = prev.find((i) => i.id === mid);
-      if (ex) return prev.map((i) => i.id === mid ? { ...i, qty: i.qty + 1 } : i);
+      if (ex) return prev.map((i) => (i.id === mid ? { ...i, qty: i.qty + 1 } : i));
       return [...prev, { id: mid, name: menu.name, qty: 1, unitPrice: menu.price }];
     });
   };
 
   /* ── math (recalculated locally from items) ── */
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
-  const tax      = parseFloat((subtotal * 0.14).toFixed(2));   // 14% — adjust if needed
-  const total    = parseFloat((subtotal + tax).toFixed(2));
+  const tax = parseFloat((subtotal * 0.14).toFixed(2)); // 14% — adjust if needed
+  const total = parseFloat((subtotal + tax).toFixed(2));
 
   /* ── submit ── */
   const handleUpdate = async () => {
@@ -120,8 +126,8 @@ export default function EditOrder() {
     setIsSubmitting(true);
     try {
       await updateOrderFn(id, {
-        notes:         instructions || undefined,
-        tableNumber:   tableNumber  || null,
+        notes: instructions || undefined,
+        tableNumber: tableNumber || null,
         paymentMethod,
         // Uncomment if your API accepts items in update:
         // items: items.map(i => ({ itemId: i.id, quantity: i.qty })),
@@ -130,7 +136,7 @@ export default function EditOrder() {
       navigate("/dashboard/orders");
     } catch (err) {
       console.error(err);
-      alert("Failed to update order.");
+      alert(t("orders.edit.failedToUpdateOrder"));
     } finally {
       setIsSubmitting(false);
     }
@@ -138,12 +144,25 @@ export default function EditOrder() {
 
   /* ── status badge color ── */
   const statusColors: Record<string, string> = {
-    pending:            "bg-yellow-100 text-yellow-700",
+    pending: "bg-yellow-100 text-yellow-700",
     "out-for-delivery": "bg-blue-100 text-blue-700",
-    delivered:          "bg-green-100 text-green-700",
-    cancelled:          "bg-red-100 text-red-700",
-    ready:              "bg-purple-100 text-purple-700",
-    completed:          "bg-green-100 text-green-700",
+    delivered: "bg-green-100 text-green-700",
+    cancelled: "bg-red-100 text-red-700",
+    ready: "bg-purple-100 text-purple-700",
+    completed: "bg-green-100 text-green-700",
+  };
+
+  const statusLabel = (status?: string) => {
+    if (!status) return "—";
+    const map: Record<string, string> = {
+      pending: t("orders.edit.statuses.pending"),
+      "out-for-delivery": t("orders.edit.statuses.outForDelivery"),
+      delivered: t("orders.edit.statuses.delivered"),
+      cancelled: t("orders.edit.statuses.cancelled"),
+      ready: t("orders.edit.statuses.ready"),
+      completed: t("orders.edit.statuses.completed"),
+    };
+    return map[status] ?? status.replace(/-/g, " ");
   };
 
   /* ── loading / error states ── */
@@ -152,10 +171,10 @@ export default function EditOrder() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex items-center gap-2 text-slate-400 text-sm">
           <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
           </svg>
-          Loading order...
+          {t("orders.edit.loadingOrder")}
         </div>
       </div>
     );
@@ -169,7 +188,7 @@ export default function EditOrder() {
           onClick={() => navigate("/dashboard/orders")}
           className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold"
         >
-          Back to Orders
+          {t("orders.edit.backToOrders")}
         </button>
       </div>
     );
@@ -187,18 +206,22 @@ export default function EditOrder() {
               onClick={() => navigate("/dashboard/orders")}
               className="flex items-center gap-1.5 text-slate-400 hover:text-slate-700 text-sm mb-2 transition-colors"
             >
-              ← Back
+              ← {t("common.back")}
             </button>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-              Edit Order {orderMeta.orderNumber ? `#${orderMeta.orderNumber}` : `#${id?.slice(-4)}`}
+              {t("orders.edit.editOrder")} {orderMeta.orderNumber ? `#${orderMeta.orderNumber}` : `#${id?.slice(-4)}`}
             </h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {orderMeta.branch && (
                 <span className="text-xs text-slate-400">📍 {orderMeta.branch}</span>
               )}
               {orderMeta.status && (
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[orderMeta.status] ?? "bg-slate-100 text-slate-600"}`}>
-                  {orderMeta.status.replace(/-/g, " ")}
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
+                    statusColors[orderMeta.status] ?? "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {statusLabel(orderMeta.status)}
                 </span>
               )}
               {orderMeta.orderType && (
@@ -211,7 +234,7 @@ export default function EditOrder() {
           <div className="hidden sm:flex flex-col gap-1.5 items-end">
             {tableNumber && (
               <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl">
-                <span className="text-xs text-slate-500">🍴 Table</span>
+                <span className="text-xs text-slate-500">🍴 {t("orders.edit.table")}</span>
                 <input
                   type="text"
                   value={tableNumber}
@@ -225,12 +248,14 @@ export default function EditOrder() {
               onChange={(e) => setPaymentMethod(e.target.value)}
               className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl focus:outline-none"
             >
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="online">Online</option>
+              <option value="cash">{t("orders.edit.paymentMethods.cash")}</option>
+              <option value="card">{t("orders.edit.paymentMethods.card")}</option>
+              <option value="online">{t("orders.edit.paymentMethods.online")}</option>
             </select>
             {orderMeta.createdBy && (
-              <span className="text-xs text-slate-400">Created by: {orderMeta.createdBy}</span>
+              <span className="text-xs text-slate-400">
+                {t("orders.edit.createdBy")}: {orderMeta.createdBy}
+              </span>
             )}
           </div>
         </div>
@@ -244,7 +269,7 @@ export default function EditOrder() {
             <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
               <div className="space-y-4">
                 {items.length === 0 && (
-                  <p className="text-center text-slate-400 text-sm py-6">No items. Add some below.</p>
+                  <p className="text-center text-slate-400 text-sm py-6">{t("orders.edit.noItemsYet")}</p>
                 )}
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 sm:gap-4 py-2">
@@ -252,12 +277,16 @@ export default function EditOrder() {
                       <button
                         onClick={() => updateQty(item.id, -1)}
                         className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-red-500 font-bold transition-colors"
-                      >−</button>
+                      >
+                        −
+                      </button>
                       <span className="w-5 text-center font-bold text-slate-800 text-sm">{item.qty}</span>
                       <button
                         onClick={() => updateQty(item.id, 1)}
                         className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-blue-500 font-bold transition-colors"
-                      >+</button>
+                      >
+                        +
+                      </button>
                     </div>
                     <span className="flex-1 text-slate-700 font-medium text-sm sm:text-base truncate">{item.name}</span>
                     <div className="text-right shrink-0">
@@ -265,7 +294,9 @@ export default function EditOrder() {
                         ${(item.unitPrice * item.qty).toFixed(2)}
                       </span>
                       {item.qty > 1 && (
-                        <span className="text-xs text-slate-400">${item.unitPrice} each</span>
+                        <span className="text-xs text-slate-400">
+                          ${item.unitPrice} {t("orders.edit.each")}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -278,7 +309,7 @@ export default function EditOrder() {
                 className="mt-4 w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-slate-400 text-sm font-medium hover:border-blue-300 hover:text-blue-500 transition-all flex items-center justify-center gap-2"
               >
                 <span className="text-lg">{showAddItems ? "−" : "⊕"}</span>
-                {showAddItems ? "Hide menu" : "Add More Items"}
+                {showAddItems ? t("orders.edit.hideMenu") : t("orders.edit.addMoreItems")}
               </button>
 
               {/* Add items panel */}
@@ -286,7 +317,7 @@ export default function EditOrder() {
                 <div className="mt-4 border border-slate-100 rounded-xl p-3">
                   <input
                     type="text"
-                    placeholder="Search items..."
+                    placeholder={t("orders.edit.searchItems")}
                     value={addSearch}
                     onChange={(e) => setAddSearch(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
@@ -309,12 +340,12 @@ export default function EditOrder() {
 
             {/* Special Instructions */}
             <div className="mt-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">Special Instructions</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">{t("orders.edit.specialInstructions")}</h3>
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 rows={4}
-                placeholder="Any special notes..."
+                placeholder={t("orders.edit.specialInstructionsPlaceholder")}
                 className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
@@ -324,12 +355,12 @@ export default function EditOrder() {
               <div className="mt-4 flex gap-4 flex-wrap">
                 {orderMeta.createdAt && (
                   <p className="text-xs text-slate-400">
-                    Created: {new Date(orderMeta.createdAt).toLocaleString()}
+                    {t("orders.edit.created")}: {new Date(orderMeta.createdAt).toLocaleString()}
                   </p>
                 )}
                 {orderMeta.updatedAt && (
                   <p className="text-xs text-slate-400">
-                    Updated: {new Date(orderMeta.updatedAt).toLocaleString()}
+                    {t("orders.edit.updated")}: {new Date(orderMeta.updatedAt).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -338,47 +369,54 @@ export default function EditOrder() {
 
           {/* ══ RIGHT — Summary ══ */}
           <div className="w-full lg:w-64 bg-slate-900 rounded-2xl p-5 text-white flex flex-col gap-4 h-fit lg:sticky lg:top-6">
-            <h2 className="text-lg font-bold">Order Summary</h2>
+            <h2 className="text-lg font-bold">{t("orders.edit.orderSummary")}</h2>
 
             {/* Items count */}
             <p className="text-slate-400 text-xs -mt-2">
-              {items.length} item{items.length !== 1 ? "s" : ""} ·{" "}
-              {items.reduce((s, i) => s + i.qty, 0)} qty total
+              {t("orders.edit.itemsCount", {
+                count: items.length,
+                qty: items.reduce((s, i) => s + i.qty, 0),
+              })}
             </p>
 
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-slate-400">
-                <span>Subtotal</span>
+                <span>{t("orders.edit.subtotal")}</span>
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm text-slate-400">
-                <span>Tax (14%)</span>
+                <span>{t("orders.edit.taxRate", { rate: 14 })}</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="border-t border-slate-700 pt-3">
               <div className="flex justify-between font-bold text-base">
-                <span>Total</span>
+                <span>{t("orders.edit.total")}</span>
                 <div className="text-right">
                   <span className="text-blue-400 text-xl">${total}</span>
-                  <p className="text-slate-500 text-xs font-normal">Includes all taxes</p>
+                  <p className="text-slate-500 text-xs font-normal">{t("orders.edit.includesAllTaxes")}</p>
                 </div>
               </div>
             </div>
 
             {/* Original totals from API (read-only reference) */}
-            {(orderMeta.total != null) && (
+            {orderMeta.total != null && (
               <div className="bg-slate-800 rounded-xl p-3 space-y-1">
-                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Original</p>
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">
+                  {t("orders.edit.original")}
+                </p>
                 <div className="flex justify-between text-xs text-slate-400">
-                  <span>Subtotal</span><span>${orderMeta.subtotal?.toFixed(2) ?? "—"}</span>
+                  <span>{t("orders.edit.subtotal")}</span>
+                  <span>${orderMeta.subtotal?.toFixed(2) ?? "—"}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400">
-                  <span>Tax</span><span>${orderMeta.tax?.toFixed(2) ?? "—"}</span>
+                  <span>{t("orders.edit.tax")}</span>
+                  <span>${orderMeta.tax?.toFixed(2) ?? "—"}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-300 font-semibold">
-                  <span>Total</span><span>${orderMeta.total?.toFixed(2) ?? "—"}</span>
+                  <span>{t("orders.edit.total")}</span>
+                  <span>${orderMeta.total?.toFixed(2) ?? "—"}</span>
                 </div>
               </div>
             )}
@@ -388,7 +426,7 @@ export default function EditOrder() {
                 onClick={() => navigate("/dashboard/orders")}
                 className="w-full py-3 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleUpdate}
@@ -398,12 +436,14 @@ export default function EditOrder() {
                 {isSubmitting ? (
                   <>
                     <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
-                    Updating...
+                    {t("orders.edit.updating")}
                   </>
-                ) : "Update Order"}
+                ) : (
+                  t("orders.edit.updateOrder")
+                )}
               </button>
             </div>
           </div>

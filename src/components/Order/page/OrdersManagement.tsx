@@ -1,6 +1,7 @@
 // src/components/Orders/OrdersManagement.tsx
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useOrders, cancelOrderFn, updateOrderStatusFn } from "../hook/useOrders";
 import { useDrivers } from "../../DeliveryandDispatch/hooks/useDrivers";
 import { createDispatchFn } from "../../DeliveryandDispatch/hooks/useDispatches";
@@ -18,23 +19,18 @@ const typeBadge: Record<string, string> = {
   "takeaway": "bg-green-100 text-green-700",
   "delivery": "bg-blue-100 text-blue-700",
 };
-const typeLabel: Record<string, string> = {
-  "dine-in": "Dine in",
-  "takeaway": "Take away",
-  "delivery": "Delivery",
-};
 const statusColor: Record<string, string> = {
   completed: "text-green-500",
   cancelled: "text-red-500",
   ready: "text-blue-500",
 };
 
-function timeAgo(dateStr?: string) {
+function timeAgo(dateStr?: string, t?: (key: string, options?: any) => string) {
   if (!dateStr) return "";
   const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
-  if (diff < 1) return "just now";
-  if (diff < 60) return `${Math.floor(diff)}m ago`;
-  return `${Math.floor(diff / 60)}h ago`;
+  if (diff < 1) return t ? t("common.justNow") : "just now";
+  if (diff < 60) return t ? t("common.minutesAgo", { count: Math.floor(diff) }) : `${Math.floor(diff)}m ago`;
+  return t ? t("common.hoursAgo", { count: Math.floor(diff / 60) }) : `${Math.floor(diff / 60)}h ago`;
 }
 
 // ─── Filter types ─────────────────────────────────────────────────────────────
@@ -57,17 +53,18 @@ function validateAssign(
   deliveryFee: string,
   commission: string,
   address: string,
-  phone: string
+  phone: string,
+  t: (key: string, options?: any) => string
 ): AssignDriverErrors {
   const e: AssignDriverErrors = {};
-  if (!driverId) e.driverId = "Please select a driver";
-  if (!deliveryFee || isNaN(Number(deliveryFee))) e.deliveryFee = "Enter a valid delivery fee";
-  else if (Number(deliveryFee) < 0) e.deliveryFee = "Fee cannot be negative";
-  if (commission && isNaN(Number(commission))) e.commission = "Enter a valid commission";
-  if (!address.trim()) e.address = "Delivery address is required";
-  else if (address.trim().length < 5) e.address = "Address is too short";
-  if (!phone.trim()) e.phone = "Customer phone is required";
-  else if (!/^[0-9+\-\s()]{7,15}$/.test(phone.trim())) e.phone = "Enter a valid phone number";
+  if (!driverId) e.driverId = t("orders.management.assignDriver.validation.driverRequired");
+  if (!deliveryFee || isNaN(Number(deliveryFee))) e.deliveryFee = t("orders.management.assignDriver.validation.validDeliveryFee");
+  else if (Number(deliveryFee) < 0) e.deliveryFee = t("orders.management.assignDriver.validation.nonNegativeFee");
+  if (commission && isNaN(Number(commission))) e.commission = t("orders.management.assignDriver.validation.validCommission");
+  if (!address.trim()) e.address = t("orders.management.assignDriver.validation.addressRequired");
+  else if (address.trim().length < 5) e.address = t("orders.management.assignDriver.validation.addressTooShort");
+  if (!phone.trim()) e.phone = t("orders.management.assignDriver.validation.phoneRequired");
+  else if (!/^[0-9+\-\s()]{7,15}$/.test(phone.trim())) e.phone = t("orders.management.assignDriver.validation.validPhone");
   return e;
 }
 
@@ -82,6 +79,7 @@ function AssignDriverModal({
   drivers: Driver[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [driverId, setDriverId] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("25");
   const [commission, setCommission] = useState("5");
@@ -98,7 +96,7 @@ function AssignDriverModal({
   const availableDrivers = drivers.filter((d) => d.status === "present" || d.status === "busy");
 
   const handleAssign = async () => {
-    const errs = validateAssign(driverId, deliveryFee, commission, address, phone);
+    const errs = validateAssign(driverId, deliveryFee, commission, address, phone, t);
     if (Object.keys(errs).length) {
       setErrors(errs);
       return;
@@ -122,7 +120,7 @@ function AssignDriverModal({
       setApiError(
         Array.isArray(data?.errors)
           ? data.errors.map((e: any) => e.msg).join(" · ")
-          : data?.message ?? err?.message ?? "Failed to assign driver."
+          : data?.message ?? err?.message ?? t("orders.management.assignDriver.failedToAssign")
       );
     } finally {
       setLoading(false);
@@ -140,8 +138,10 @@ function AssignDriverModal({
                 🛵
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">Assign Driver</h2>
-                <p className="text-blue-100 text-sm">Order #{orderNumber}</p>
+                <h2 className="text-lg font-bold text-white">{t("orders.management.assignDriver.title")}</h2>
+                <p className="text-blue-100 text-sm">
+                  {t("orders.management.assignDriver.orderNumber", { number: orderNumber })}
+                </p>
               </div>
             </div>
             <button
@@ -153,10 +153,10 @@ function AssignDriverModal({
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
-              💰 ${(order as any).total?.toFixed(2) ?? "—"}
+              💰 {(order as any).total != null ? `$${(order as any).total?.toFixed(2)}` : "—"}
             </span>
             <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
-              📦 {(order.items ?? []).length} items
+              📦 {(order.items ?? []).length} {t("orders.management.assignDriver.items")}
             </span>
             <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
               🕐 {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -178,11 +178,11 @@ function AssignDriverModal({
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Delivery Address <span className="text-red-500">*</span>
+              {t("orders.management.assignDriver.deliveryAddress")} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              placeholder="e.g. Gehan street villa 7, Mansoura"
+              placeholder={t("orders.management.assignDriver.deliveryAddressPlaceholder")}
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
@@ -198,11 +198,11 @@ function AssignDriverModal({
           {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Customer Phone <span className="text-red-500">*</span>
+              {t("orders.management.assignDriver.customerPhone")} <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
-              placeholder="01xxxxxxxxx"
+              placeholder={t("orders.management.assignDriver.customerPhonePlaceholder")}
               value={phone}
               onChange={(e) => {
                 setPhone(e.target.value);
@@ -218,12 +218,12 @@ function AssignDriverModal({
           {/* Driver picker - combo box */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Select Driver <span className="text-red-500">*</span>
+              {t("orders.management.assignDriver.selectDriver")} <span className="text-red-500">*</span>
             </label>
 
             {availableDrivers.length === 0 ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
-                <span>⚠️</span> No available drivers. Change a driver's status first.
+                <span>⚠️</span> {t("orders.management.assignDriver.noAvailableDrivers")}
               </div>
             ) : (
               <select
@@ -236,7 +236,7 @@ function AssignDriverModal({
                   errors.driverId ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"
                 }`}
               >
-                <option value="">Select a driver</option>
+                <option value="">{t("orders.management.assignDriver.selectDriverPlaceholder")}</option>
                 {availableDrivers.map((d) => (
                   <option key={d.id} value={d.id ?? ""}>
                     {d.name}
@@ -253,7 +253,9 @@ function AssignDriverModal({
           {/* Fee + Commission */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Delivery Fee</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                {t("orders.management.assignDriver.deliveryFee")}
+              </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
                 <input
@@ -273,7 +275,9 @@ function AssignDriverModal({
               {errors.deliveryFee && <p className="text-xs text-red-500 mt-1">{errors.deliveryFee}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Commission</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                {t("orders.management.assignDriver.commission")}
+              </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
                 <input
@@ -301,7 +305,7 @@ function AssignDriverModal({
             disabled={loading}
             className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleAssign}
@@ -316,7 +320,7 @@ function AssignDriverModal({
             ) : (
               <span>🛵</span>
             )}
-            {loading ? "Assigning..." : "Assign Driver"}
+            {loading ? t("orders.management.assignDriver.assigning") : t("orders.management.assignDriver.assignDriver")}
           </button>
         </div>
       </div>
@@ -327,6 +331,7 @@ function AssignDriverModal({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OrdersManagement() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -348,11 +353,35 @@ export default function OrdersManagement() {
 
   const orders: Order[] = data?.data ?? [];
 
+  const filterLabel = (f: FilterTab) => {
+    const key =
+      f === "All Orders" ? "allOrders" :
+      f === "dine-in" ? "dineIn" :
+      f === "takeaway" ? "takeaway" :
+      "delivery";
+    return t(`orders.management.filters.${key}`);
+  };
+
+  const filterEmoji = (f: FilterTab) => {
+    if (f === "delivery") return "🛵 ";
+    if (f === "takeaway") return "🥡 ";
+    if (f === "dine-in") return "🍽 ";
+    return "";
+  };
+
+  const orderTypeLabel = (type?: string) => {
+    const key =
+      type === "dine-in" ? "dineIn" :
+      type === "takeaway" ? "takeAway" :
+      "delivery";
+    return t(`orders.management.types.${key}`);
+  };
+
   // ── Actions ──
   const handleCancel = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!confirm("Cancel this order?")) return;
+      if (!confirm(t("orders.management.confirmCancelOrder"))) return;
       setCancellingId(id);
       try {
         await cancelOrderFn(id);
@@ -360,12 +389,12 @@ export default function OrdersManagement() {
         if (selectedOrder?.id === id || selectedOrder?._id === id) setSelectedOrder(null);
       } catch (err) {
         console.error(err);
-        alert("Failed to cancel order.");
+        alert(t("orders.management.failedToCancelOrder"));
       } finally {
         setCancellingId(null);
       }
     },
-    [selectedOrder]
+    [selectedOrder, t]
   );
 
   // Mark as Ready → then open Assign Driver modal
@@ -375,16 +404,15 @@ export default function OrdersManagement() {
     try {
       await updateOrderStatusFn(id, { status: "ready" });
       invalidateQuery("orders");
-      // Open assign modal with updated order reference
       setAssigningOrder(order);
       setSelectedOrder(null);
     } catch (err) {
       console.error(err);
-      alert("Failed to update status.");
+      alert(t("orders.management.failedToUpdateStatus"));
     } finally {
       setMarkingId(null);
     }
-  }, []);
+  }, [t]);
 
   // ── Derived ──
   const orderId = (o: Order) => (o.id ?? o._id ?? "") as string;
@@ -415,7 +443,7 @@ export default function OrdersManagement() {
               </span>
               <input
                 type="text"
-                placeholder="Search by Order ID, Table, or Item..."
+                placeholder={t("orders.management.searchPlaceholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -436,8 +464,8 @@ export default function OrdersManagement() {
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  {f === "delivery" ? "🛵 " : f === "takeaway" ? "🥡 " : f === "dine-in" ? "🍽 " : ""}
-                  {typeLabel[f] ?? f}
+                  {filterEmoji(f)}
+                  {filterLabel(f)}
                 </button>
               ))}
             </div>
@@ -447,7 +475,7 @@ export default function OrdersManagement() {
               onClick={() => navigate("/dashboard/orders/create")}
               className="w-full sm:w-auto sm:ml-auto px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
             >
-              + Create Order
+              + {t("orders.management.createOrder")}
             </button>
           </div>
 
@@ -458,16 +486,19 @@ export default function OrdersManagement() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
-              Loading orders...
+              {t("orders.management.loadingOrders")}
             </div>
           )}
 
           {/* Error */}
           {isError && (
             <div className="text-center py-16">
-              <p className="text-red-500 text-sm mb-3">Failed to load orders.</p>
-              <button onClick={refetch} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm hover:bg-slate-200">
-                Retry
+              <p className="text-red-500 text-sm mb-3">{t("orders.management.failedToLoadOrders")}</p>
+              <button
+                onClick={refetch}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm hover:bg-slate-200"
+              >
+                {t("common.retry")}
               </button>
             </div>
           )}
@@ -476,8 +507,8 @@ export default function OrdersManagement() {
           {!isLoading && !isError && orders.length === 0 && (
             <div className="text-center py-16 text-slate-400 text-sm">
               {activeFilter === "delivery"
-                ? "No delivery orders found. Create one by selecting 🛵 Delivery when placing an order."
-                : "No orders found."}
+                ? t("orders.management.noDeliveryOrdersFound")
+                : t("orders.management.noOrdersFound")}
             </div>
           )}
 
@@ -494,7 +525,7 @@ export default function OrdersManagement() {
                     key={id}
                     onClick={() => setSelectedOrder(order)}
                     className={`rounded-xl border-2 p-4 cursor-pointer transition-all hover:shadow-md ${
-                      orderId(selectedOrder ?? {}) === id
+                      orderId(selectedOrder ?? ({} as Order)) === id
                         ? "border-blue-500 bg-blue-50/30"
                         : "border-slate-100 hover:border-slate-200"
                     }`}
@@ -503,20 +534,22 @@ export default function OrdersManagement() {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <p className="font-bold text-slate-800 text-sm">
-                          #{order.orderNumber ?? `ORD-${order.orderId ?? id.slice(-4)}`}
+                          {t("orders.management.orderNumber", {
+                            orderNumber: order.orderNumber ?? `ORD-${order.orderId ?? id.slice(-4)}`,
+                          })}
                         </p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-xs text-slate-500">
                             {type === "delivery"
-                              ? `📍 ${(order as any).deliveryAddress ?? (order as any).customerLocation?.address ?? "Delivery"}`
-                              : `🍴 ${order.tableNumber ? `Table ${order.tableNumber}` : "—"}`}
+                              ? `📍 ${(order as any).deliveryAddress ?? (order as any).customerLocation?.address ?? t("orders.management.delivery")}`
+                              : `🍴 ${order.tableNumber ? t("orders.management.tableNumber", { tableNumber: order.tableNumber }) : "—"}`}
                           </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-slate-400">{timeAgo(order.createdAt)}</span>
+                        <span className="text-xs text-slate-400">{timeAgo(order.createdAt, t)}</span>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeBadge[type] ?? "bg-slate-100 text-slate-600"}`}>
-                          {typeLabel[type] ?? order.orderType}
+                          {orderTypeLabel(order.orderType)}
                         </span>
                       </div>
                     </div>
@@ -531,7 +564,9 @@ export default function OrdersManagement() {
                         </p>
                       ))}
                       {(order.items?.length ?? 0) > 3 && (
-                        <p className="text-xs text-slate-400">+{(order.items?.length ?? 0) - 3} more</p>
+                        <p className="text-xs text-slate-400">
+                          +{(order.items?.length ?? 0) - 3} {t("orders.management.more")}
+                        </p>
                       )}
                       {order.notes && (
                         <p className="text-xs text-red-500 flex items-center gap-1 mt-1">⚠ {order.notes}</p>
@@ -555,7 +590,7 @@ export default function OrdersManagement() {
                         disabled={cancellingId === id}
                         className="mt-3 text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50 transition-colors"
                       >
-                        {cancellingId === id ? "Cancelling..." : "Cancel order"}
+                        {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
                       </button>
                     )}
                   </div>
@@ -595,15 +630,19 @@ export default function OrdersManagement() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="font-bold text-lg">
-                      #{selectedOrder.orderNumber ?? `ORD-${selectedOrder.orderId ?? id.slice(-4)}`}
+                      {t("orders.management.orderNumber", {
+                        orderNumber: selectedOrder.orderNumber ?? `ORD-${selectedOrder.orderId ?? id.slice(-4)}`,
+                      })}
                     </h2>
-                    <p className="text-slate-400 text-sm capitalize">{selectedOrder.status ?? "In progress"}</p>
+                    <p className="text-slate-400 text-sm capitalize">
+                      {selectedOrder.status ? selectedOrder.status : t("orders.management.inProgress")}
+                    </p>
                     {type === "delivery" && (
                       <p className="text-xs text-blue-400 mt-1">
                         📍{" "}
                         {(selectedOrder as any).deliveryAddress ??
                           (selectedOrder as any).customerLocation?.address ??
-                          "Delivery order"}
+                          t("orders.management.deliveryOrder")}
                       </p>
                     )}
                   </div>
@@ -616,7 +655,7 @@ export default function OrdersManagement() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 bg-blue-500 rounded-sm" />
-                    <span className="text-sm font-semibold text-slate-300">Order Items</span>
+                    <span className="text-sm font-semibold text-slate-300">{t("orders.management.orderItems")}</span>
                   </div>
                   <div className="space-y-2">
                     {(selectedOrder.items ?? []).map((item, i) => (
@@ -633,15 +672,15 @@ export default function OrdersManagement() {
                 {/* Totals */}
                 <div className="border-t border-slate-700 pt-3 space-y-1.5">
                   <div className="flex justify-between text-sm text-slate-400">
-                    <span>Subtotal</span>
+                    <span>{t("orders.management.subtotal")}</span>
                     <span>${sub.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-slate-400">
-                    <span>Tax</span>
+                    <span>{t("orders.management.tax")}</span>
                     <span>${tax.toFixed(2)}</span>
                   </div>
                   <div className="border-t border-slate-700 pt-2 flex justify-between font-bold text-base">
-                    <span>Total</span>
+                    <span>{t("orders.management.total")}</span>
                     <span className="text-blue-400">${total.toFixed(2)}</span>
                   </div>
                 </div>
@@ -649,13 +688,13 @@ export default function OrdersManagement() {
                 {/* Actions */}
                 <div className="flex gap-2">
                   <button className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors">
-                    🖨 Print
+                    🖨 {t("orders.management.print")}
                   </button>
                   <button
                     onClick={() => navigate(`/dashboard/orders/${id}/edit`)}
                     className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors"
                   >
-                    ✏ Edit
+                    ✏ {t("common.edit")}
                   </button>
                 </div>
 
@@ -671,10 +710,10 @@ export default function OrdersManagement() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
-                        Updating...
+                        {t("orders.management.updating")}
                       </>
                     ) : (
-                      "✓ Mark as Ready"
+                      t("orders.management.markAsReady")
                     )}
                   </button>
                 )}
@@ -685,7 +724,7 @@ export default function OrdersManagement() {
                     disabled={cancellingId === id}
                     className="w-full py-2.5 rounded-xl border border-red-500/40 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-colors disabled:opacity-50"
                   >
-                    {cancellingId === id ? "Cancelling..." : "Cancel Order"}
+                    {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
                   </button>
                 )}
               </aside>

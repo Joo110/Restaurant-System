@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProcessPayrollModal from "./ProcessPayrollModal";
 import { usePayrolls } from "../hook/usePayroll";
 
@@ -10,6 +11,7 @@ function fmtCurrency(n?: number) {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function PayrollPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showProcess, setShowProcess] = useState(false);
@@ -30,17 +32,21 @@ export default function PayrollPage() {
   // list records from API
   const recordsRaw = data?.data ?? [];
 
-  const records = useMemo(() => recordsRaw.map((p: any) => {
-    const id = p.id ?? p._id ?? p.payrollId ?? "";
-    const name = p.employeeName ?? p.employee?.fullName ?? `#${String(p.employeeId ?? "")}`;
-    const role = p.employee?.role ?? p.role ?? "—";
-    const gross = p.grossSalary ?? p.baseSalary ?? 0;
-    const bonus = p.bonus ?? 0;
-    const deductions = p.deductions ?? 0;
-    const net = p.netSalary ?? 0;
-    const status = (p.paymentStatus ?? "pending").toString();
-    return { id, name, role, gross, bonus, deductions, net, status, raw: p };
-  }), [recordsRaw]);
+  const records = useMemo(
+    () =>
+      recordsRaw.map((p: any) => {
+        const id = p.id ?? p._id ?? p.payrollId ?? "";
+        const name = p.employeeName ?? p.employee?.fullName ?? `#${String(p.employeeId ?? "")}`;
+        const role = p.employee?.role ?? p.role ?? "—";
+        const gross = p.grossSalary ?? p.baseSalary ?? 0;
+        const bonus = p.bonus ?? 0;
+        const deductions = p.deductions ?? 0;
+        const net = p.netSalary ?? 0;
+        const status = (p.paymentStatus ?? "pending").toString();
+        return { id, name, role, gross, bonus, deductions, net, status, raw: p };
+      }),
+    [recordsRaw]
+  );
 
   const totalPayrollCost = stats?.financial?.totalNet ?? records.reduce((s, r) => s + Number(r.net || 0), 0);
 
@@ -49,15 +55,23 @@ export default function PayrollPage() {
     r.role.toLowerCase().includes(search.toLowerCase())
   );
 
+  const totalDocs = data?.paginationResult?.totalDocs ?? 0;
+  const current = data?.paginationResult?.currentPage ?? currentPage;
+  const pageLimit = data?.paginationResult?.limit ?? limit;
+  const totalPages = data?.paginationResult?.totalPages ?? 1;
+
+  const from = totalDocs ? (current - 1) * pageLimit + 1 : 0;
+  const to = totalDocs ? Math.min(current * pageLimit, totalDocs) : 0;
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-5 font-sans">
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         {[
-          { label: "Total Payroll Cost", icon: "💰", value: fmtCurrency(totalPayrollCost) },
-          { label: "Deductions", icon: "📋", value: fmtCurrency(stats?.financial?.totalTax ?? stats?.financial?.totalTax ?? 0) },
-          { label: "Bonus / Overtime", icon: "⭐", value: fmtCurrency(stats?.financial?.totalBonus ?? 0) },
-          { label: "Payroll Count", icon: "📄", value: stats?.total ?? records.length },
+          { label: t("payroll.list.stats.totalPayrollCost"), icon: "💰", value: fmtCurrency(totalPayrollCost) },
+          { label: t("payroll.list.stats.deductions"), icon: "📋", value: fmtCurrency(stats?.financial?.totalTax ?? 0) },
+          { label: t("payroll.list.stats.bonusOvertime"), icon: "⭐", value: fmtCurrency(stats?.financial?.totalBonus ?? 0) },
+          { label: t("payroll.list.stats.payrollCount"), icon: "📄", value: stats?.total ?? records.length },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <div className="flex items-center gap-1.5 mb-1">
@@ -79,7 +93,7 @@ export default function PayrollPage() {
           </span>
           <input
             type="text"
-            placeholder="Search Employee, Role..."
+            placeholder={t("payroll.list.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -89,7 +103,7 @@ export default function PayrollPage() {
           onClick={() => setShowProcess(true)}
           className="sm:ml-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors"
         >
-          ▶ Process Payroll
+          ▶ {t("payroll.list.processPayroll")}
         </button>
       </div>
 
@@ -99,13 +113,13 @@ export default function PayrollPage() {
           <table className="w-full text-sm min-w-[600px]">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-                <th className="py-3 px-4 sm:px-5 text-left">Employee</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Role</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Gross Pay</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Bonus</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Deductions</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Net pay</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Status</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.employee")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.role")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.grossPay")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.bonus")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.deductions")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.netPay")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("payroll.list.table.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -142,12 +156,16 @@ export default function PayrollPage() {
               ))}
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">Loading…</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    {t("common.loading")}
+                  </td>
                 </tr>
               )}
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">No payroll records found.</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    {t("payroll.list.noPayrollRecordsFound")}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -157,16 +175,18 @@ export default function PayrollPage() {
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-slate-50">
           <span className="text-xs text-slate-400">
-           {data?.paginationResult?.totalDocs
-  ? `Showing ${((data.paginationResult.currentPage ?? currentPage) - 1) * (data.paginationResult.limit ?? limit) + 1}–${Math.min((data.paginationResult.currentPage ?? currentPage) * (data.paginationResult.limit ?? limit), data.paginationResult.totalDocs)} of ${data.paginationResult.totalDocs}`
-  : `Showing ${records.length} records`}
+            {totalDocs
+              ? t("payroll.list.pagination.showingRange", { from, to, total: totalDocs })
+              : t("payroll.list.pagination.showingRecords", { count: records.length })}
           </span>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs"
-            >‹</button>
-            {Array.from({ length: Math.min(data?.paginationResult?.totalPages ?? 1, 5) }, (_, i) => i + 1).map((p) => (
+            >
+              ‹
+            </button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
                 onClick={() => setCurrentPage(p)}
@@ -180,7 +200,9 @@ export default function PayrollPage() {
             <button
               onClick={() => setCurrentPage((p) => p + 1)}
               className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs"
-            >›</button>
+            >
+              ›
+            </button>
           </div>
         </div>
       </div>

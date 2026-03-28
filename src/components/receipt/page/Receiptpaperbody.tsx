@@ -1,17 +1,22 @@
+import { useTranslation } from "react-i18next";
+
 export default function ReceiptPaperBody() {
+  const { t } = useTranslation();
+
   const items = [
-    { name: "Cheeseburger x 2", price: 24.69 },
-    { name: "Premium Cola x 1 +1", price: 9.99 },
-    { name: "Vanilla Theme x 2", price: 10.00 },
+    { name: "Cheeseburger x 2",      price: 24.69 },
+    { name: "Premium Cola x 1 +1",   price: 9.99  },
+    { name: "Vanilla Theme x 2",     price: 10.00 },
   ];
 
   const subtotal = items.reduce((s, i) => s + i.price, 0);
-  const vat = subtotal * 0.1;
-  const total = subtotal + vat;
+  const vat      = subtotal * 0.1;
+  const total    = subtotal + vat;
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center font-sans py-10">
       <div className="bg-white w-64 rounded-2xl shadow-xl p-6 font-mono text-xs">
+
         {/* Header */}
         <div className="flex flex-col items-center mb-5 text-center">
           <div className="w-10 h-10 bg-gray-900 rounded-lg mb-2 flex items-center justify-center">
@@ -25,25 +30,26 @@ export default function ReceiptPaperBody() {
 
         <div className="border-t-2 border-dashed border-gray-300 mb-4" />
 
+        {/* Order info */}
         <div className="space-y-1 mb-4 text-[11px]">
           <div className="flex justify-between">
-            <span className="text-gray-500">Order#</span>
+            <span className="text-gray-500">{t("orderHash")}</span>
             <span className="font-semibold">10095</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Date</span>
+            <span className="text-gray-500">{t("date")}</span>
             <span>Oct 26, 2023</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Cashier</span>
+            <span className="text-gray-500">{t("cashier")}</span>
             <span>Ahmed S.</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Table</span>
+            <span className="text-gray-500">{t("table")}</span>
             <span>Dine-In / Table 5</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Guests</span>
+            <span className="text-gray-500">{t("guests")}</span>
             <span>12</span>
           </div>
         </div>
@@ -62,13 +68,14 @@ export default function ReceiptPaperBody() {
 
         <div className="border-t-2 border-dashed border-gray-300 mb-4" />
 
+        {/* Totals */}
         <div className="space-y-1.5 text-[11px] mb-4">
           <div className="flex justify-between">
-            <span className="text-gray-500">Subtotal</span>
+            <span className="text-gray-500">{t("subtotal")}</span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">VAT (10%)</span>
+            <span className="text-gray-500">{t("vat")} (10%)</span>
             <span>${vat.toFixed(2)}</span>
           </div>
         </div>
@@ -76,22 +83,22 @@ export default function ReceiptPaperBody() {
         <div className="border-t border-gray-300 mb-4" />
 
         <div className="flex justify-between font-bold text-sm mb-4">
-          <span>TOTAL</span>
+          <span>{t("total")}</span>
           <span>${total.toFixed(2)}</span>
         </div>
 
         {/* Payment */}
         <div className="space-y-1 text-[10px] text-gray-500 mb-4">
           <div className="flex justify-between">
-            <span>Payment Amount</span>
+            <span>{t("paymentAmount")}</span>
             <span className="font-medium">VISA ****1253</span>
           </div>
           <div className="flex justify-between">
-            <span>Auth Code</span>
+            <span>{t("authCode")}</span>
             <span>9BQKM</span>
           </div>
           <div className="flex justify-between">
-            <span>Ref No.</span>
+            <span>{t("refNo")}</span>
             <span>8274-RX-11</span>
           </div>
         </div>
@@ -110,7 +117,7 @@ export default function ReceiptPaperBody() {
         </div>
 
         <p className="text-center text-[10px] text-gray-400 leading-relaxed">
-          Thank you for dining with us!<br />We hope you enjoyed your meal!
+          {t("thankYou")}<br />{t("enjoyedMeal")}
         </p>
       </div>
     </div>

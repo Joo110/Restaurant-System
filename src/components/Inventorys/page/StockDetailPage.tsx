@@ -1,18 +1,7 @@
 // src/components/Inventory/page/StockDetailPage.tsx
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useInventoryItem } from "../hook/useInventory";
-
-/* ─── Real API shape ────────────────────────────────────────────────────────
-  data.item        { id, name, description, price, category }
-  data.branch      { id, name, address: { street, city, country } }
-  data.stock       { current, unit, target, percentage, reorderPoint, status, statusLabel }
-  data.supplier    { name, contact, phone, email, leadTime, lastPrice }
-  data.pricing     { lastPrice, lastOrderedAt }
-  data.expiryDate  string | null
-  data.usage       { last7Days: number[], averageDaily: number }
-  data.deliveries  []
-  data.metadata    { createdAt, updatedAt, createdBy: {name,jobId}, updatedBy: {name,jobId} }
-──────────────────────────────────────────────────────────────────────────── */
 
 const DAY_LABELS = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -22,11 +11,11 @@ function getStrokeColor(status: string) {
   return "#22c55e";
 }
 
-function getStatusBadge(status: string, label: string) {
-  if (status === "critical") return { text: label || "Critical",     color: "bg-red-100 text-red-700"      };
-  if (status === "low")      return { text: label || "Low Stock",    color: "bg-red-100 text-red-700"      };
-  if (status === "warning")  return { text: label || "Low Stock Warning", color: "bg-yellow-100 text-yellow-700" };
-  return                            { text: label || "In Stock",     color: "bg-green-100 text-green-700"  };
+function getStatusBadge(status: string, label: string, t: (key: string) => string) {
+  if (status === "critical") return { text: label || t("critical"),         color: "bg-red-100 text-red-700"      };
+  if (status === "low")      return { text: label || t("lowStock"),         color: "bg-red-100 text-red-700"      };
+  if (status === "warning")  return { text: label || t("lowStockWarning"),  color: "bg-yellow-100 text-yellow-700" };
+  return                            { text: label || t("inStock"),          color: "bg-green-100 text-green-700"  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +26,7 @@ function unwrap(raw: any) {
 }
 
 export default function StockDetailPage() {
+  const { t }    = useTranslation();
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
 
@@ -44,7 +34,6 @@ export default function StockDetailPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d: any = unwrap(raw);
 
-  // ── Destructure ──────────────────────────────────────────────────────────
   const menuItem   = d?.item     ?? {};
   const branch     = d?.branch   ?? {};
   const stock      = d?.stock    ?? {};
@@ -55,28 +44,23 @@ export default function StockDetailPage() {
   const deliveries: unknown[] = d?.deliveries ?? [];
   const expiryDate = d?.expiryDate ?? null;
 
-  const itemName   = menuItem.name     ?? "Unknown Item";
-  const category   = menuItem.category ?? "—";
-  const current    = stock.current     ?? 0;
-  const target     = stock.target      ?? 1;
-  const unit       = stock.unit        ?? "unit";
-  const percentage = stock.percentage  ?? Math.min((current / target) * 100, 100);
-  const status     = stock.status      ?? "good";
+  const itemName    = menuItem.name     ?? "Unknown Item";
+  const category    = menuItem.category ?? "—";
+  const current     = stock.current     ?? 0;
+  const target      = stock.target      ?? 1;
+  const unit        = stock.unit        ?? "unit";
+  const percentage  = stock.percentage  ?? Math.min((current / target) * 100, 100);
+  const status      = stock.status      ?? "good";
   const statusLabel = stock.statusLabel ?? "Good";
 
-  // Donut chart
   const circumference = 2 * Math.PI * 48;
   const dashArray     = `${(percentage / 100) * circumference} ${circumference}`;
   const strokeColor   = getStrokeColor(status);
-  const statusBadge   = getStatusBadge(status, statusLabel);
+  const statusBadge   = getStatusBadge(status, statusLabel, t);
 
-  // Usage chart
-  const usageData: number[] = usage.last7Days?.length
-    ? usage.last7Days
-    : [0, 0, 0, 0, 0, 0, 0];
+  const usageData: number[] = usage.last7Days?.length ? usage.last7Days : [0, 0, 0, 0, 0, 0, 0];
   const maxUsage = Math.max(...usageData, 1);
 
-  // Expiry
   const expiryDateObj   = expiryDate ? new Date(expiryDate) : null;
   const daysUntilExpiry = expiryDateObj
     ? Math.ceil((expiryDateObj.getTime() - Date.now()) / 86400000)
@@ -90,30 +74,32 @@ export default function StockDetailPage() {
 
         {/* Breadcrumb */}
         <p className="text-xs text-slate-400 mb-2">
-          <span className="cursor-pointer hover:text-blue-500 transition-colors"
-            onClick={() => navigate("/dashboard/inventory")}>
-            Inventory
+          <span
+            className="cursor-pointer hover:text-blue-500 transition-colors"
+            onClick={() => navigate("/dashboard/inventory")}
+          >
+            {t("inventoryPage")}
           </span>
           {" / "}
-          <span className="text-slate-600">{itemName} Details</span>
+          <span className="text-slate-600">{itemName} {t("itemDetails")}</span>
         </p>
 
         {/* Loading */}
         {isLoading && (
           <div className="flex items-center gap-2 text-sm text-slate-400 my-10">
             <svg className="animate-spin w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
-            Loading item details...
+            {t("loadingItemDetails")}
           </div>
         )}
 
         {/* Error */}
         {isError && !isLoading && (
           <div className="my-8 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 flex items-center justify-between">
-            <span>Failed to load item details.</span>
-            <button onClick={refetch} className="underline font-medium">Retry</button>
+            <span>{t("failedToLoadItem")}</span>
+            <button onClick={refetch} className="underline font-medium">{t("retry")}</button>
           </div>
         )}
 
@@ -133,11 +119,13 @@ export default function StockDetailPage() {
                     </span>
                   )}
                   {isExpired && (
-                    <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600 rounded-full">Expired</span>
+                    <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600 rounded-full">
+                      {t("expired")}
+                    </span>
                   )}
                   {isExpiringSoon && !isExpired && (
                     <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 text-orange-600 rounded-full">
-                      Expires in {daysUntilExpiry}d
+                      {t("expiresIn")} {daysUntilExpiry}d
                     </span>
                   )}
                 </div>
@@ -146,7 +134,7 @@ export default function StockDetailPage() {
                 onClick={() => navigate("/dashboard/inventory")}
                 className="self-start sm:self-auto px-5 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors"
               >
-                ← Back
+                {t("backButton")}
               </button>
             </div>
 
@@ -160,15 +148,16 @@ export default function StockDetailPage() {
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-blue-500">📦</span>
-                    <span className="font-semibold text-slate-700 text-sm">Current Stock Level</span>
+                    <span className="font-semibold text-slate-700 text-sm">{t("stockDetailTitle")}</span>
                   </div>
 
                   {/* Donut */}
                   <div className="flex justify-center mb-4">
                     <div className="relative w-32 h-32 sm:w-36 sm:h-36">
                       <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                        <circle cx="60" cy="60" r="48" fill="none" stroke="#f1f5f9" strokeWidth="12"/>
-                        <circle cx="60" cy="60" r="48" fill="none"
+                        <circle cx="60" cy="60" r="48" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                        <circle
+                          cx="60" cy="60" r="48" fill="none"
                           stroke={strokeColor} strokeWidth="12"
                           strokeDasharray={dashArray} strokeLinecap="round"
                           style={{ transition: "stroke-dasharray 0.6s ease" }}
@@ -183,11 +172,11 @@ export default function StockDetailPage() {
 
                   <div className="flex justify-between text-xs mb-3">
                     <div>
-                      <p className="text-slate-400 uppercase tracking-wide mb-0.5">Unit Type</p>
+                      <p className="text-slate-400 uppercase tracking-wide mb-0.5">{t("unitType")}</p>
                       <p className="font-semibold text-slate-700 uppercase">{unit}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-slate-400 uppercase tracking-wide mb-0.5">Reorder Point</p>
+                      <p className="text-slate-400 uppercase tracking-wide mb-0.5">{t("reorderPoint")}</p>
                       <p className={`font-semibold ${stock.reorderPoint > 0 ? "text-yellow-500" : "text-slate-700"}`}>
                         {stock.reorderPoint > 0 ? `${stock.reorderPoint} ${unit} ⚠` : `${target} ${unit}`}
                       </p>
@@ -196,8 +185,8 @@ export default function StockDetailPage() {
 
                   {/* Expiry */}
                   {expiryDate && (
-                    <div className={`pt-3 border-t border-slate-100 flex justify-between text-xs`}>
-                      <span className="text-slate-400">Expiry Date</span>
+                    <div className="pt-3 border-t border-slate-100 flex justify-between text-xs">
+                      <span className="text-slate-400">{t("expiryDate")}</span>
                       <span className={`font-semibold ${isExpired ? "text-red-500" : isExpiringSoon ? "text-orange-500" : "text-slate-700"}`}>
                         {expiryDateObj!.toLocaleDateString()}
                         {isExpired && " ⚠"}
@@ -209,13 +198,13 @@ export default function StockDetailPage() {
                   {/* Pricing */}
                   {pricing.lastPrice != null && (
                     <div className="mt-2 flex justify-between text-xs">
-                      <span className="text-slate-400">Last Price</span>
+                      <span className="text-slate-400">{t("lastPrice")}</span>
                       <span className="font-semibold text-slate-700">${pricing.lastPrice} / {unit}</span>
                     </div>
                   )}
                   {pricing.lastOrderedAt && (
                     <div className="mt-2 flex justify-between text-xs">
-                      <span className="text-slate-400">Last Ordered</span>
+                      <span className="text-slate-400">{t("lastOrdered")}</span>
                       <span className="font-semibold text-slate-700">
                         {new Date(pricing.lastOrderedAt).toLocaleDateString()}
                       </span>
@@ -227,25 +216,27 @@ export default function StockDetailPage() {
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-blue-500">🚚</span>
-                    <span className="font-semibold text-slate-700 text-sm">Primary Supplier</span>
+                    <span className="font-semibold text-slate-700 text-sm">{t("primarySupplier")}</span>
                   </div>
                   <p className="font-bold text-slate-800 text-sm mb-3">{supplier.name ?? "—"}</p>
                   <div className="space-y-2 text-xs">
                     {[
-                      ["Contact",    supplier.contact  ],
-                      ["Phone",      supplier.phone    ],
-                      ["Email",      supplier.email    ],
-                      ["Lead Time",  supplier.leadTime ],
-                      ["Last Price", supplier.lastPrice],
+                      ["Contact",   supplier.contact  ],
+                      ["Phone",     supplier.phone    ],
+                      ["Email",     supplier.email    ],
+                      ["Lead Time", supplier.leadTime ],
+                      [t("lastPrice"), supplier.lastPrice],
                     ].filter(([, v]) => v).map(([label, value]) => (
                       <div key={label as string} className="flex justify-between gap-2">
                         <span className="text-slate-400 flex-shrink-0">{label as string}</span>
-                        <span className="text-slate-700 font-medium text-right truncate max-w-[160px]">{value as string}</span>
+                        <span className="text-slate-700 font-medium text-right truncate max-w-[160px]">
+                          {value as string}
+                        </span>
                       </div>
                     ))}
                   </div>
                   <button className="mt-4 w-full py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5">
-                    ✉ Contact Supplier
+                    {t("contactSupplier")}
                   </button>
                 </div>
 
@@ -254,7 +245,7 @@ export default function StockDetailPage() {
                   <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-blue-500">🏪</span>
-                      <span className="font-semibold text-slate-700 text-sm">Branch</span>
+                      <span className="font-semibold text-slate-700 text-sm">{t("branchLabel")}</span>
                     </div>
                     <p className="font-bold text-slate-800 text-sm">{branch.name}</p>
                     {branch.address && (
@@ -273,17 +264,20 @@ export default function StockDetailPage() {
                 {/* Usage Chart */}
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-slate-700 text-sm">7-Day Usage History</h3>
+                    <h3 className="font-semibold text-slate-700 text-sm">{t("usageHistory")}</h3>
                     {usage.averageDaily > 0 && (
                       <span className="text-xs text-slate-400">
-                        Avg: <span className="font-semibold text-slate-600">{usage.averageDaily} {unit}/day</span>
+                        {t("avgDaily")}:{" "}
+                        <span className="font-semibold text-slate-600">
+                          {usage.averageDaily} {unit}/day
+                        </span>
                       </span>
                     )}
                   </div>
 
                   {usageData.every((v) => v === 0) ? (
                     <div className="h-36 flex items-center justify-center text-sm text-slate-400">
-                      No usage data available
+                      {t("noUsageData")}
                     </div>
                   ) : (
                     <div className="flex items-end gap-2 sm:gap-3" style={{ height: "160px" }}>
@@ -305,24 +299,24 @@ export default function StockDetailPage() {
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-blue-500">📋</span>
-                    <span className="font-semibold text-slate-700 text-sm">Recent Deliveries</span>
+                    <span className="font-semibold text-slate-700 text-sm">{t("recentDeliveries")}</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs min-w-[420px]">
                       <thead>
                         <tr className="text-slate-400 uppercase tracking-wide border-b border-slate-100">
-                          <th className="pb-2 text-left font-medium">Date</th>
-                          <th className="pb-2 text-left font-medium">Invoice #</th>
-                          <th className="pb-2 text-left font-medium">Supplier</th>
-                          <th className="pb-2 text-left font-medium">QTY</th>
-                          <th className="pb-2 text-left font-medium">Status</th>
+                          <th className="pb-2 text-left font-medium">{t("date")}</th>
+                          <th className="pb-2 text-left font-medium">{t("invoice")}</th>
+                          <th className="pb-2 text-left font-medium">{t("supplier")}</th>
+                          <th className="pb-2 text-left font-medium">{t("qty")}</th>
+                          <th className="pb-2 text-left font-medium">{t("status")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {deliveries.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="py-8 text-center text-slate-400">
-                              No delivery history available
+                              {t("noDeliveryHistory")}
                             </td>
                           </tr>
                         ) : (
@@ -352,13 +346,15 @@ export default function StockDetailPage() {
 
                 {/* Metadata */}
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Record Info</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                    {t("recordInfo")}
+                  </p>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     {[
-                      ["Created By",  metadata.createdBy  ? `${metadata.createdBy.name} (#${metadata.createdBy.jobId})` : "—"],
-                      ["Updated By",  metadata.updatedBy  ? `${metadata.updatedBy.name} (#${metadata.updatedBy.jobId})` : "—"],
-                      ["Created At",  metadata.createdAt  ? new Date(metadata.createdAt).toLocaleDateString()  : "—"],
-                      ["Updated At",  metadata.updatedAt  ? new Date(metadata.updatedAt).toLocaleDateString()  : "—"],
+                      [t("createdBy"), metadata.createdBy ? `${metadata.createdBy.name} (#${metadata.createdBy.jobId})` : "—"],
+                      [t("updatedBy"), metadata.updatedBy ? `${metadata.updatedBy.name} (#${metadata.updatedBy.jobId})` : "—"],
+                      [t("createdAt"), metadata.createdAt ? new Date(metadata.createdAt).toLocaleDateString() : "—"],
+                      [t("updatedAt"), metadata.updatedAt ? new Date(metadata.updatedAt).toLocaleDateString() : "—"],
                     ].map(([label, value]) => (
                       <div key={label}>
                         <p className="text-slate-400 mb-0.5">{label}</p>

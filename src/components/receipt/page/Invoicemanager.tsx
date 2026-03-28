@@ -1,29 +1,31 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface InvoiceItem {
-  name: string;
+  name:        string;
   description: string;
-  qty: number;
-  unitPrice: number;
-  discount: number;
+  qty:         number;
+  unitPrice:   number;
+  discount:    number;
 }
 
 export default function InvoiceManager() {
+  const { t } = useTranslation();
   const [printed, setPrinted] = useState(false);
 
   const items: InvoiceItem[] = [
-    { name: "Classic Cheeseburger", description: "Extra Cheese, No Onion", qty: 2, unitPrice: 12.95, discount: 0 },
-    { name: "Truffle Mushroom Burger", description: 'Premium "Truffle Mayo" Sauce', qty: 1, unitPrice: 16.30, discount: 2.30 },
-    { name: "Sweet Potato Fries", description: "", qty: 2, unitPrice: 5.00, discount: 0 },
-    { name: "Vanilla Milkshake", description: "", qty: 2, unitPrice: 5.50, discount: 0 },
+    { name: "Classic Cheeseburger",      description: "Extra Cheese, No Onion",      qty: 2, unitPrice: 12.95, discount: 0    },
+    { name: "Truffle Mushroom Burger",   description: '"Truffle Mayo" Sauce',         qty: 1, unitPrice: 16.30, discount: 2.30 },
+    { name: "Sweet Potato Fries",        description: "",                             qty: 2, unitPrice: 5.00,  discount: 0    },
+    { name: "Vanilla Milkshake",         description: "",                             qty: 2, unitPrice: 5.50,  discount: 0    },
   ];
 
-  const itemTotals = items.map(i => i.qty * i.unitPrice - i.discount);
-  const subtotal = itemTotals.reduce((a, b) => a + b, 0);
-  const discountTotal = items.reduce((a, i) => a + i.discount, 0);
-  const serviceCharge = subtotal * 0.1;
-  const vatAmount = (subtotal) * 0.1;
-  const total = subtotal + serviceCharge + vatAmount;
+  const itemTotals     = items.map((i) => i.qty * i.unitPrice - i.discount);
+  const subtotal       = itemTotals.reduce((a, b) => a + b, 0);
+  const discountTotal  = items.reduce((a, i) => a + i.discount, 0);
+  const serviceCharge  = subtotal * 0.1;
+  const vatAmount      = subtotal * 0.1;
+  const total          = subtotal + serviceCharge + vatAmount;
 
   const handlePrint = () => {
     setPrinted(true);
@@ -50,23 +52,33 @@ export default function InvoiceManager() {
 
           <div className="text-right">
             <div className="flex items-center justify-end gap-2 mb-1">
-              <p className="font-semibold text-gray-700 text-sm">Invoice #INV-10245</p>
-              <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">● Paid</span>
+              <p className="font-semibold text-gray-700 text-sm">
+                {t("invoiceTitle")} #INV-10245
+              </p>
+              <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                ● {t("paid")}
+              </span>
               <button
                 onClick={handlePrint}
-                className={`text-[11px] border px-3 py-1 rounded-lg font-medium transition-all ${printed ? "bg-green-50 border-green-300 text-green-600" : "border-blue-200 text-blue-600 hover:bg-blue-50"}`}
+                className={`text-[11px] border px-3 py-1 rounded-lg font-medium transition-all ${
+                  printed
+                    ? "bg-green-50 border-green-300 text-green-600"
+                    : "border-blue-200 text-blue-600 hover:bg-blue-50"
+                }`}
               >
-                {printed ? "✓ Printed" : "🖨 Print"}
+                {printed ? t("printed") : t("print")}
               </button>
             </div>
             <p className="text-gray-400 text-xs">Oct 26, 2023</p>
 
             <div className="mt-3 bg-gray-50 rounded-xl px-3 py-2 text-right">
-              <p className="text-xs text-gray-500 font-medium">Dine-in Customer</p>
+              <p className="text-xs text-gray-500 font-medium">{t("dineInCustomer")}</p>
               <div className="flex items-center justify-end gap-2 mt-0.5">
-                <span className="text-[10px] text-gray-400 bg-white border border-gray-200 px-2 py-0.5 rounded-full">● Table 5</span>
-                <span className="text-[10px] text-gray-400">4 Serviced</span>
-                <span className="text-[10px] text-gray-400">Guests: 4</span>
+                <span className="text-[10px] text-gray-400 bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                  ● Table 5
+                </span>
+                <span className="text-[10px] text-gray-400">4 {t("serviced")}</span>
+                <span className="text-[10px] text-gray-400">{t("guests")}: 4</span>
               </div>
             </div>
           </div>
@@ -77,11 +89,11 @@ export default function InvoiceManager() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
-                <th className="text-left pb-3 font-semibold">Item Details</th>
-                <th className="text-center pb-3 font-semibold w-16">QTY</th>
-                <th className="text-right pb-3 font-semibold w-24">Unit Price</th>
-                <th className="text-right pb-3 font-semibold w-24">Discount</th>
-                <th className="text-right pb-3 font-semibold w-24">Total</th>
+                <th className="text-left pb-3 font-semibold">{t("itemDetails")}</th>
+                <th className="text-center pb-3 font-semibold w-16">{t("qty")}</th>
+                <th className="text-right pb-3 font-semibold w-24">{t("unitPrice")}</th>
+                <th className="text-right pb-3 font-semibold w-24">{t("discountCol")}</th>
+                <th className="text-right pb-3 font-semibold w-24">{t("totalCol")}</th>
               </tr>
             </thead>
             <tbody>
@@ -115,42 +127,46 @@ export default function InvoiceManager() {
 
             {/* Payment Details */}
             <div className="flex-1">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Payment Details</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                {t("paymentDetails")}
+              </p>
               <div className="flex items-center gap-3 mb-2">
-                <div className="bg-blue-700 text-white text-[9px] font-extrabold px-2 py-1 rounded tracking-wider">VISA</div>
+                <div className="bg-blue-700 text-white text-[9px] font-extrabold px-2 py-1 rounded tracking-wider">
+                  VISA
+                </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800">Visa ending in 4242</p>
-                  <p className="text-xs text-gray-400">Auth Code: 9BQKM</p>
+                  <p className="text-xs text-gray-400">{t("authCode")}: 9BQKM</p>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Transaction processed securely.</p>
+              <p className="text-xs text-gray-400 mt-1">{t("transactionProcessed")}</p>
             </div>
 
             {/* Totals */}
             <div className="w-60 space-y-2 text-sm">
               <div className="flex justify-between text-gray-500">
-                <span>Subtotal</span>
+                <span>{t("subtotal")}</span>
                 <span className="font-medium text-gray-700">${subtotal.toFixed(2)}</span>
               </div>
               {discountTotal > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Discount Amount</span>
+                  <span>{t("discountAmount")}</span>
                   <span className="font-medium">-${discountTotal.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-500">
-                <span>Service Charge (10%)</span>
+                <span>{t("serviceCharge")} (10%)</span>
                 <span className="font-medium text-gray-700">${serviceCharge.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-500">
-                <span>VAT (10%)</span>
+                <span>{t("vat")} (10%)</span>
                 <span className="font-medium text-gray-700">${vatAmount.toFixed(2)}</span>
               </div>
               <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-base">
-                <span>Total</span>
+                <span>{t("totalCol")}</span>
                 <span className="text-blue-600">${total.toFixed(2)}</span>
               </div>
-              <p className="text-[10px] text-gray-400 text-right">All prices include taxes</p>
+              <p className="text-[10px] text-gray-400 text-right">{t("allPricesIncludeTax")}</p>
             </div>
           </div>
         </div>
@@ -158,7 +174,7 @@ export default function InvoiceManager() {
         {/* Footer Note */}
         <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex items-center justify-between">
           <p className="text-xs text-gray-400 italic">
-            Thank you for dining with us! We hope you enjoyed your meal!
+            {t("thankYou")} {t("enjoyedMeal")}
           </p>
           <p className="text-[10px] text-gray-300 font-mono">INV-10245 · Gourmet Burger Co.</p>
         </div>

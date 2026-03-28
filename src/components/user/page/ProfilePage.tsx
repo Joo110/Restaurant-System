@@ -1,5 +1,6 @@
 // src/components/profile/ProfilePage.tsx
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Clock, Mail, Phone, Save,
@@ -10,29 +11,20 @@ import UpdatePasswordModal from "./Updatepasswordmodal";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 interface UserProfile {
   firstName: string; lastName: string; email: string;
   lastName2: string; role: string; branchName: string;
   tenure: string; workEmail: string; directLine: string;
 }
-
 interface NotifPref { key: string; label: string; description: string; enabled: boolean }
 interface Device    { id: string; name: string; type: "desktop"|"mobile"; location: string; lastActive: string; isActive: boolean }
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
-
 const MOCK_PROFILE: UserProfile = {
   firstName: "Mohamed", lastName: "Morsy", email: "morsy44@dgrest.com",
   lastName2: "Johnson",  role: "Branch Manager", branchName: "Nasr City",
   tenure: "2.5 Years",   workEmail: "ahmed.ali@rest.com", directLine: "+(20) 255214555",
 };
-
-const MOCK_NOTIFS: NotifPref[] = [
-  { key: "low",    label: "Low Inventory Alerts", description: "Critical updates when stock levels fall below threshold.", enabled: true  },
-  { key: "staff",  label: "Staff Alerts",         description: "Notify when staff checks in.",                             enabled: true  },
-  { key: "system", label: "System Alerts",        description: "Critical updates about inventory levels and staff.",       enabled: false },
-];
 
 const MOCK_ACTIVITY = [
   { icon: "📊", color: "bg-purple-100", title: "Updated menu pricing",         description: "Increased prices for breakfast items by 5% to adjust for inflation.",                      time: "Today, 10:42 AM"    },
@@ -48,7 +40,6 @@ const MOCK_DEVICES: Device[] = [
 ];
 
 // ─── Small reusable components ────────────────────────────────────────────────
-
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
   return (
     <button onClick={onChange} className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? "bg-blue-600" : "bg-gray-200"}`}>
@@ -67,18 +58,24 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-
 export default function ProfilePage() {
+  const { t }    = useTranslation();
   const navigate = useNavigate();
   const fileRef  = useRef<HTMLInputElement>(null);
 
   const [profile,       setProfile]       = useState<UserProfile>(MOCK_PROFILE);
-  const [notifs,        setNotifs]        = useState<NotifPref[]>(MOCK_NOTIFS);
   const [devices,       setDevices]       = useState<Device[]>(MOCK_DEVICES);
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
   const [showPassModal, setShowPassModal] = useState(false);
   const [avatarUrl,     setAvatarUrl]     = useState<string | null>(null);
+
+  // Build notification state using translated labels
+  const [notifs, setNotifs] = useState<NotifPref[]>([
+    { key: "low",    label: t("profile.notifications.items.low.label"),    description: t("profile.notifications.items.low.description"),    enabled: true  },
+    { key: "staff",  label: t("profile.notifications.items.staff.label"),  description: t("profile.notifications.items.staff.description"),  enabled: true  },
+    { key: "system", label: t("profile.notifications.items.system.label"), description: t("profile.notifications.items.system.description"), enabled: false },
+  ]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -93,8 +90,12 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const toggleNotif   = (key: string) => setNotifs(p => p.map(n => n.key === key ? { ...n, enabled: !n.enabled } : n));
-  const logoutDevice  = (id: string)  => setDevices(p => p.filter(d => d.id !== id));
+  const toggleNotif  = (key: string) => setNotifs(p => p.map(n => n.key === key ? { ...n, enabled: !n.enabled } : n));
+  const logoutDevice = (id: string)  => setDevices(p => p.filter(d => d.id !== id));
+
+  const pi = "profile.personalInfo";
+  const sb = "profile.sidebar";
+  const sc = "profile.security";
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
@@ -109,11 +110,15 @@ export default function ProfilePage() {
       {/* Breadcrumb */}
       <div className="px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-2">
         <nav className="text-xs text-gray-400 flex items-center gap-1 flex-wrap">
-          <button onClick={() => navigate("/")} className="hover:text-blue-600 transition">Home</button>
+          <button onClick={() => navigate("/")} className="hover:text-blue-600 transition">
+            {t("profile.breadcrumb.home")}
+          </button>
           <span>/</span>
-          <button onClick={() => navigate("/staff")} className="hover:text-blue-600 transition">Staff</button>
+          <button onClick={() => navigate("/staff")} className="hover:text-blue-600 transition">
+            {t("profile.breadcrumb.staff")}
+          </button>
           <span>/</span>
-          <span className="text-blue-600 font-medium">Profile</span>
+          <span className="text-blue-600 font-medium">{t("profile.breadcrumb.profile")}</span>
         </nav>
       </div>
 
@@ -150,8 +155,8 @@ export default function ProfilePage() {
 
               <div className="mt-4 space-y-3 text-left">
                 {[
-                  { icon: <Building2 size={13} />, label: "Branch Name",   value: profile.branchName },
-                  { icon: <Clock      size={13} />, label: "Branch Tenure", value: profile.tenure     },
+                  { icon: <Building2 size={13} />, label: t(`${sb}.branchName`),   value: profile.branchName },
+                  { icon: <Clock      size={13} />, label: t(`${sb}.branchTenure`), value: profile.tenure     },
                 ].map(row => (
                   <div key={row.label} className="flex items-center gap-2">
                     <span className="text-gray-400 flex-shrink-0">{row.icon}</span>
@@ -164,8 +169,8 @@ export default function ProfilePage() {
 
                 <div className="border-t border-gray-100 pt-3 space-y-3">
                   {[
-                    { icon: <Mail  size={13} />, label: "Work Email",  value: profile.workEmail  },
-                    { icon: <Phone size={13} />, label: "Direct Line", value: profile.directLine },
+                    { icon: <Mail  size={13} />, label: t(`${sb}.workEmail`),  value: profile.workEmail  },
+                    { icon: <Phone size={13} />, label: t(`${sb}.directLine`), value: profile.directLine },
                   ].map(row => (
                     <div key={row.label} className="flex items-center gap-2">
                       <span className="text-gray-400 flex-shrink-0">{row.icon}</span>
@@ -187,7 +192,10 @@ export default function ProfilePage() {
           {/* Personal Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-              <SectionHeader title="Personal Information" sub="Update your personal details and contact information." />
+              <SectionHeader
+                title={t(`${pi}.title`)}
+                sub={t(`${pi}.subtitle`)}
+              />
               <button
                 onClick={handleSave} disabled={saving}
                 className="self-start flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm disabled:opacity-60 whitespace-nowrap"
@@ -196,15 +204,15 @@ export default function ProfilePage() {
                   ? <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                   : saved ? <span>✓</span> : <Save size={13} />
                 }
-                {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+                {saving ? t(`${pi}.saving`) : saved ? t(`${pi}.saved`) : t(`${pi}.saveChanges`)}
               </button>
             </div>
             <div className="border-t border-gray-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {[
-                { k: "firstName" as const, label: "First Name",    ro: false },
-                { k: "lastName"  as const, label: "Last Name",     ro: false },
-                { k: "email"     as const, label: "Email Address", ro: true, badge: "Read Only" },
-                { k: "lastName2" as const, label: "Last Name",     ro: false },
+                { k: "firstName" as const, label: t(`${pi}.firstName`),   ro: false },
+                { k: "lastName"  as const, label: t(`${pi}.lastName`),    ro: false },
+                { k: "email"     as const, label: t(`${pi}.emailAddress`), ro: true, badge: t(`${pi}.readOnly`) },
+                { k: "lastName2" as const, label: t(`${pi}.lastName`),    ro: false },
               ].map(({ k, label, ro, badge }) => (
                 <div key={k}>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
@@ -229,7 +237,7 @@ export default function ProfilePage() {
 
           {/* Notifications */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-5">
-            <SectionHeader title="Notifications" />
+            <SectionHeader title={t("profile.notifications.title")} />
             <div className="mt-2 divide-y divide-gray-100">
               {notifs.map(n => (
                 <div key={n.key} className="flex items-center justify-between py-3 gap-4">
@@ -245,7 +253,10 @@ export default function ProfilePage() {
 
           {/* Recent Activity */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-5">
-            <SectionHeader title="Recent Activity" sub="Track your branch-specific actions and system changes." />
+            <SectionHeader
+              title={t("profile.recentActivity.title")}
+              sub={t("profile.recentActivity.subtitle")}
+            />
             <div className="mt-3 space-y-3 sm:space-y-4">
               {MOCK_ACTIVITY.map((item, i) => (
                 <div key={i} className="flex items-start gap-3">
@@ -268,31 +279,36 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Shield size={15} className="text-gray-600 flex-shrink-0" />
-              <h2 className="text-base font-bold text-gray-900">Security</h2>
+              <h2 className="text-base font-bold text-gray-900">{t(`${sc}.title`)}</h2>
             </div>
 
             {/* Change Password */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4">
               <div>
-                <p className="text-sm font-semibold text-gray-800">Change Password</p>
-                <p className="text-xs text-gray-400 mt-0.5">Last changed 3 months ago</p>
+                <p className="text-sm font-semibold text-gray-800">{t(`${sc}.changePassword`)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t(`${sc}.lastChanged`)}</p>
               </div>
               <button
                 onClick={() => setShowPassModal(true)}
                 className="self-start sm:self-auto px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm whitespace-nowrap"
               >
-                Update
+                {t(`${sc}.update`)}
               </button>
             </div>
 
             {/* Logged-in Devices */}
             <div>
-              <h3 className="text-sm font-bold text-gray-800 mb-3">Logged-in Devices</h3>
+              <h3 className="text-sm font-bold text-gray-800 mb-3">{t(`${sc}.loggedInDevices`)}</h3>
               <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
                 <table className="w-full text-xs min-w-[400px]">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      {["DEVICE", "LOCATION", "LAST ACTIVE", "ACTION"].map(h => (
+                      {[
+                        t(`${sc}.tableHeaders.device`),
+                        t(`${sc}.tableHeaders.location`),
+                        t(`${sc}.tableHeaders.lastActive`),
+                        t(`${sc}.tableHeaders.action`),
+                      ].map(h => (
                         <th key={h} className="text-left text-gray-400 font-semibold pb-2.5 pr-3 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -304,17 +320,19 @@ export default function ProfilePage() {
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                               {device.type === "desktop"
-                                ? <Monitor size={13} className="text-blue-600" />
+                                ? <Monitor    size={13} className="text-blue-600" />
                                 : <Smartphone size={13} className="text-blue-600" />
                               }
                             </div>
                             <div>
                               <p className="font-semibold text-gray-800 whitespace-nowrap">{device.name}</p>
-                              {device.type === "mobile" && <p className="text-gray-400 text-[10px]">Mobile App</p>}
+                              {device.type === "mobile" && (
+                                <p className="text-gray-400 text-[10px]">{t(`${sc}.mobileApp`)}</p>
+                              )}
                               {device.isActive && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600">
                                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                                  Active now
+                                  {t(`${sc}.activeNow`)}
                                 </span>
                               )}
                             </div>
@@ -328,7 +346,7 @@ export default function ProfilePage() {
                             className="flex items-center gap-1 text-red-400 hover:text-red-600 font-semibold transition whitespace-nowrap"
                           >
                             <LogOut size={11} />
-                            Logout
+                            {t(`${sc}.logout`)}
                           </button>
                         </td>
                       </tr>
@@ -338,6 +356,7 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>

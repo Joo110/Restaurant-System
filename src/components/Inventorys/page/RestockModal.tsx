@@ -1,6 +1,7 @@
 // src/components/Inventory/page/RestockModal.tsx
 import { useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useInventory, restockInventoryFn, createInventoryFn } from "../hook/useInventory";
 import { useSuppliers } from "../../Supplier/hook/useSuppliers";
 import { invalidateQuery } from "../../../hook/queryClient";
@@ -8,24 +9,21 @@ import api from "../../../lib/axios";
 import type { ApiBranch } from "../../layout/Topbar";
 
 type Props = {
-  onClose: () => void;
+  onClose:    () => void;
   onSuccess?: () => void;
-  /** Optional branchId override — if not passed, read from outlet context */
-  branchId?: string;
+  branchId?:  string;
 };
 
 type Tab = "restock" | "add";
 
-// ── Valid units accepted by the API ──────────────────────────────────────────
 const VALID_UNITS = ["kg", "g", "L", "ml", "pcs", "box", "dozen", "lb", "oz", "cup", "tsp", "tbsp"];
 
-/* ─── Restock form ─── */
 type RestockForm = {
   inventoryId: string;
-  quantity: string;
-  supplierId: string;
-  expiryDate: string;
-  price: string;
+  quantity:    string;
+  supplierId:  string;
+  expiryDate:  string;
+  price:       string;
 };
 type RestockErrors = Partial<Record<keyof RestockForm, string>>;
 
@@ -33,8 +31,7 @@ function validateRestock(f: RestockForm): RestockErrors {
   const e: RestockErrors = {};
   if (!f.inventoryId) e.inventoryId = "Please select an item.";
   const qty = parseFloat(f.quantity);
-  if (!f.quantity || isNaN(qty) || qty <= 0)
-    e.quantity = "Quantity must be a positive number.";
+  if (!f.quantity || isNaN(qty) || qty <= 0) e.quantity = "Quantity must be a positive number.";
   if (f.price) {
     const p = parseFloat(f.price);
     if (isNaN(p) || p < 0) e.price = "Enter a valid positive price.";
@@ -47,15 +44,14 @@ function validateRestock(f: RestockForm): RestockErrors {
   return e;
 }
 
-/* ─── Add New Item form ─── */
 type AddForm = {
-  itemId: string;
-  unit: string;
+  itemId:          string;
+  unit:            string;
   currentQuantity: string;
-  targetQuantity: string;
-  supplierId: string;
-  lastPrice: string;
-  expiryDate: string;
+  targetQuantity:  string;
+  supplierId:      string;
+  lastPrice:       string;
+  expiryDate:      string;
 };
 type AddErrors = Partial<Record<keyof AddForm, string>>;
 
@@ -83,7 +79,6 @@ function validateAdd(f: AddForm): AddErrors {
   return e;
 }
 
-// Parse server errors array → field map
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseServerErrors(err: any): { fieldErrors: Record<string, string>; general: string | null } {
   const errors = err?.response?.data?.errors;
@@ -94,14 +89,10 @@ function parseServerErrors(err: any): { fieldErrors: Record<string, string>; gen
     });
     return { fieldErrors, general: null };
   }
-  const msg =
-    err?.response?.data?.message ??
-    err?.message ??
-    "Something went wrong. Please try again.";
+  const msg = err?.response?.data?.message ?? err?.message ?? "Something went wrong. Please try again.";
   return { fieldErrors: {}, general: msg };
 }
 
-/* ─── Shared helpers ─── */
 const fc = (err?: string) =>
   `w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-colors ${
     err
@@ -118,9 +109,8 @@ function Spinner() {
   );
 }
 
-// ── Hook: fetch menu items for itemId dropdown ────────────────────────────────
 function useMenuItems() {
-  const [items, setItems]   = useState<{ id: string; name: string; category: string }[]>([]);
+  const [items,   setItems]   = useState<{ id: string; name: string; category: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetched, setFetched] = useState(false);
 
@@ -131,13 +121,7 @@ function useMenuItems() {
       .then((res) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any[] = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
-        setItems(
-          data.map((i) => ({
-            id:       i.id ?? i._id,
-            name:     i.name ?? i.itemId ?? i.id,
-            category: i.category ?? "",
-          }))
-        );
+        setItems(data.map((i) => ({ id: i.id ?? i._id, name: i.name ?? i.itemId ?? i.id, category: i.category ?? "" })));
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -146,35 +130,32 @@ function useMenuItems() {
   return { items, loading };
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function RestockModal({ onClose, onSuccess, branchId: branchIdProp }: Props) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("restock");
 
-  // ── Resolve branchId — same pattern as AddMenuItemModal ──────────────────
-  const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
+  const outlet       = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranch = outlet?.activeBranch ?? null;
-  const branchId =
+  const branchId     =
     branchIdProp ??
     activeBranch?.id ??
     activeBranch?._id ??
     (activeBranch?.branchId != null ? String(activeBranch.branchId) : undefined);
 
-  // ── Shared data fetches ───────────────────────────────────────────────────
   const { data: invData, isLoading: loadingInv } = useInventory({ limit: 200 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const inventoryItems: any[] = invData?.data ?? [];
 
   const { items: menuItems, loading: loadingMenu } = useMenuItems();
-
-  const { data: supData, isLoading: loadingSup } = useSuppliers({ limit: 100 });
+  const { data: supData,    isLoading: loadingSup } = useSuppliers({ limit: 100 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const suppliers: any[] = supData?.data ?? [];
 
-  /* ─────────────────────── RESTOCK TAB ─────────────────────── */
-  const [rf, setRf]       = useState<RestockForm>({ inventoryId: "", quantity: "", supplierId: "", expiryDate: "", price: "" });
-  const [re, setRe]       = useState<RestockErrors>({});
-  const [rSub, setRSub]   = useState(false);
-  const [rErr, setRErr]   = useState<string | null>(null);
+  /* ─── Restock tab state ─── */
+  const [rf, setRf]   = useState<RestockForm>({ inventoryId: "", quantity: "", supplierId: "", expiryDate: "", price: "" });
+  const [re, setRe]   = useState<RestockErrors>({});
+  const [rSub, setRSub] = useState(false);
+  const [rErr, setRErr] = useState<string | null>(null);
 
   const setR = (k: keyof RestockForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -204,7 +185,6 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
     setRErr(null);
     const errs = validateRestock(rf);
     if (Object.keys(errs).length) { setRe(errs); return; }
-
     setRSub(true);
     try {
       await restockInventoryFn(rf.inventoryId, {
@@ -223,11 +203,11 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
     }
   };
 
-  /* ─────────────────────── ADD NEW ITEM TAB ─────────────────────── */
-  const [af, setAf]       = useState<AddForm>({ itemId: "", unit: "", currentQuantity: "", targetQuantity: "", supplierId: "", lastPrice: "", expiryDate: "" });
-  const [ae, setAe]       = useState<AddErrors>({});
-  const [aSub, setASub]   = useState(false);
-  const [aErr, setAErr]   = useState<string | null>(null);
+  /* ─── Add new item tab state ─── */
+  const [af, setAf]   = useState<AddForm>({ itemId: "", unit: "", currentQuantity: "", targetQuantity: "", supplierId: "", lastPrice: "", expiryDate: "" });
+  const [ae, setAe]   = useState<AddErrors>({});
+  const [aSub, setASub] = useState(false);
+  const [aErr, setAErr] = useState<string | null>(null);
 
   const setA = (k: keyof AddForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -240,16 +220,9 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     setAErr(null);
-
-    // Branch required for general manager
-    if (!branchId) {
-      setAErr("Please select a branch before adding an item.");
-      return;
-    }
-
+    if (!branchId) { setAErr(t("noBranchSelected")); return; }
     const errs = validateAdd(af);
     if (Object.keys(errs).length) { setAe(errs); return; }
-
     setASub(true);
     try {
       await createInventoryFn({
@@ -260,57 +233,53 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
         supplier:        af.supplierId || undefined,
         lastPrice:       af.lastPrice  ? parseFloat(af.lastPrice) : undefined,
         expiryDate:      af.expiryDate || null,
-        branchId,                        // ← required by API for general manager
+        branchId,
       });
       invalidateQuery("inventory");
       onSuccess?.();
     } catch (err: unknown) {
       const { fieldErrors, general } = parseServerErrors(err);
-      if (Object.keys(fieldErrors).length) {
-        setAe((prev) => ({ ...prev, ...fieldErrors }));
-      } else {
-        setAErr(general);
-      }
+      if (Object.keys(fieldErrors).length) setAe((prev) => ({ ...prev, ...fieldErrors }));
+      else setAErr(general);
     } finally {
       setASub(false);
     }
   };
 
-  /* ─────────────────────── RENDER ─────────────────────── */
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md p-5 sm:p-6 font-sans max-h-[90vh] overflow-y-auto">
 
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900">Stock Management</h2>
-        <p className="text-sm text-slate-400 mt-0.5 mb-4">Restock existing items or add a new item to inventory</p>
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900">{t("inventoryTitle")}</h2>
+        <p className="text-sm text-slate-400 mt-0.5 mb-4">{t("inventorySubtitle")}</p>
 
         {/* Branch warning */}
         {!branchId && (
           <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-700 flex items-center gap-2">
             <span>⚠</span>
-            <span>No branch selected. Please select a branch from the top bar first.</span>
+            <span>{t("noBranchSelected")}</span>
           </div>
         )}
 
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-5">
-          {(["restock", "add"] as Tab[]).map((t) => (
+          {(["restock", "add"] as Tab[]).map((tabKey) => (
             <button
-              key={t}
+              key={tabKey}
               type="button"
-              onClick={() => setTab(t)}
+              onClick={() => setTab(tabKey)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                tab === t
+                tab === tabKey
                   ? "bg-white text-slate-800 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              {t === "restock" ? "🔄 Restock Item" : "➕ Add New Item"}
+              {tabKey === "restock" ? t("restockItem") : t("addNewItem")}
             </button>
           ))}
         </div>
 
-        {/* ══════════════ RESTOCK TAB ══════════════ */}
+        {/* ── Restock Tab ── */}
         {tab === "restock" && (
           <form onSubmit={handleRestock} noValidate>
             {rErr && (
@@ -323,18 +292,16 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
               {/* Select existing inventory item */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Select Item<span className="text-red-500">*</span>
+                  {t("selectItem")} <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={rf.inventoryId}
-                  onChange={handleItemChange}
-                  disabled={loadingInv}
+                  value={rf.inventoryId} onChange={handleItemChange} disabled={loadingInv}
                   className={fc(re.inventoryId) + " text-slate-600 appearance-none"}
                 >
-                  <option value="">{loadingInv ? "Loading items…" : "Choose an item…"}</option>
+                  <option value="">{loadingInv ? t("loadingItems") : t("chooseItem")}</option>
                   {inventoryItems.map((inv) => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const s = (inv as any).stock ?? {};
+                    const s    = (inv as any).stock ?? {};
                     const name = inv.item?.name ?? inv.id;
                     return (
                       <option key={inv.id} value={inv.id}>
@@ -346,16 +313,16 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
                 {re.inventoryId && <p className="mt-1 text-xs text-red-500">{re.inventoryId}</p>}
                 {selInv?.pricing?.lastPrice != null && (
                   <p className="text-xs text-slate-400 mt-1">
-                    Last price: ${selInv.pricing.lastPrice} / {selUnit}
+                    {t("lastPrice")}: ${selInv.pricing.lastPrice} / {selUnit}
                   </p>
                 )}
               </div>
 
-              {/* Quantity + Unit readonly */}
+              {/* Quantity + Unit */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Quantity to Add<span className="text-red-500">*</span>
+                    {t("quantityToAdd")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number" min="0" step="0.01"
@@ -365,11 +332,11 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
                   {re.quantity && <p className="mt-1 text-xs text-red-500">{re.quantity}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Unit</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("unit")}</label>
                   <input
                     type="text" readOnly
                     value={selUnit || ""}
-                    placeholder="Select item first"
+                    placeholder={t("selectItemFirst")}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500"
                   />
                 </div>
@@ -377,12 +344,12 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
 
               {/* Supplier */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Supplier</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("supplier")}</label>
                 <select
                   value={rf.supplierId} onChange={setR("supplierId")} disabled={loadingSup}
                   className={fc() + " text-slate-600 appearance-none"}
                 >
-                  <option value="">{loadingSup ? "Loading…" : "Select a supplier"}</option>
+                  <option value="">{loadingSup ? t("loadingSuppliers") : t("selectSupplier")}</option>
                   {suppliers.map((s) => (
                     <option key={s.id ?? s._id} value={s.id ?? s._id}>{s.companyName}</option>
                   ))}
@@ -391,7 +358,7 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
 
               {/* Unit Price */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Unit Price</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("unitPriceLabel")}</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                   <input
@@ -405,7 +372,7 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
 
               {/* Expiry Date */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Expiry Date</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("expiryDate")}</label>
                 <input
                   type="date" value={rf.expiryDate} onChange={setR("expiryDate")}
                   min={new Date().toISOString().split("T")[0]}
@@ -416,20 +383,24 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
-              <button type="button" onClick={onClose} disabled={rSub}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 disabled:opacity-50">
-                Cancel
+              <button
+                type="button" onClick={onClose} disabled={rSub}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                {t("cancel")}
               </button>
-              <button type="submit" disabled={rSub}
-                className="px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-60 flex items-center gap-2">
+              <button
+                type="submit" disabled={rSub}
+                className="px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-60 flex items-center gap-2"
+              >
                 {rSub && <Spinner />}
-                {rSub ? "Adding…" : "Add To Inventory"}
+                {rSub ? t("adding") : t("addToInventory")}
               </button>
             </div>
           </form>
         )}
 
-        {/* ══════════════ ADD NEW ITEM TAB ══════════════ */}
+        {/* ── Add New Item Tab ── */}
         {tab === "add" && (
           <form onSubmit={handleAdd} noValidate>
             {aErr && (
@@ -439,16 +410,16 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
             )}
             <div className="space-y-4">
 
-              {/* Menu Item dropdown — real ObjectId */}
+              {/* Menu Item */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Menu Item<span className="text-red-500">*</span>
+                  {t("menuItem")} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={af.itemId} onChange={setA("itemId")} disabled={loadingMenu}
                   className={fc(ae.itemId) + " text-slate-600 appearance-none"}
                 >
-                  <option value="">{loadingMenu ? "Loading menu items…" : "Select a menu item…"}</option>
+                  <option value="">{loadingMenu ? t("loadingMenuItems") : t("selectMenuItem")}</option>
                   {menuItems.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}{m.category ? ` (${m.category})` : ""}
@@ -462,25 +433,21 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
                   </p>
                 )}
                 {menuItems.length === 0 && !loadingMenu && (
-                  <p className="text-xs text-orange-500 mt-1">
-                    ⚠ Could not load menu items. Check /items endpoint.
-                  </p>
+                  <p className="text-xs text-orange-500 mt-1">{t("cannotLoadMenuItems")}</p>
                 )}
               </div>
 
-              {/* Unit — predefined select */}
+              {/* Unit */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Unit<span className="text-red-500">*</span>
+                  {t("unit")} <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={af.unit} onChange={setA("unit")}
                   className={fc(ae.unit) + " text-slate-600 appearance-none"}
                 >
-                  <option value="">Select a unit…</option>
-                  {VALID_UNITS.map((u) => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
+                  <option value="">{t("selectUnit")}</option>
+                  {VALID_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
                 {ae.unit && <p className="mt-1 text-xs text-red-500">{ae.unit}</p>}
               </div>
@@ -489,7 +456,7 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Current Qty<span className="text-red-500">*</span>
+                    {t("currentQty")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number" min="0" step="0.01"
@@ -500,7 +467,7 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Target Qty<span className="text-red-500">*</span>
+                    {t("targetQty")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number" min="0.01" step="0.01"
@@ -515,12 +482,12 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
 
               {/* Supplier */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Supplier</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("supplier")}</label>
                 <select
                   value={af.supplierId} onChange={setA("supplierId")} disabled={loadingSup}
                   className={fc() + " text-slate-600 appearance-none"}
                 >
-                  <option value="">{loadingSup ? "Loading…" : "Select a supplier"}</option>
+                  <option value="">{loadingSup ? t("loadingSuppliers") : t("selectSupplier")}</option>
                   {suppliers.map((s) => (
                     <option key={s.id ?? s._id} value={s.id ?? s._id}>{s.companyName}</option>
                   ))}
@@ -529,7 +496,7 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
 
               {/* Unit Price */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Unit Price</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("unitPriceLabel")}</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                   <input
@@ -543,7 +510,7 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
 
               {/* Expiry Date */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Expiry Date</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("expiryDate")}</label>
                 <input
                   type="date" value={af.expiryDate} onChange={setA("expiryDate")}
                   min={new Date().toISOString().split("T")[0]}
@@ -554,17 +521,18 @@ export default function RestockModal({ onClose, onSuccess, branchId: branchIdPro
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
-              <button type="button" onClick={onClose} disabled={aSub}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 disabled:opacity-50">
-                Cancel
+              <button
+                type="button" onClick={onClose} disabled={aSub}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                {t("cancel")}
               </button>
               <button
-                type="submit"
-                disabled={aSub || !branchId}
+                type="submit" disabled={aSub || !branchId}
                 className="px-5 py-2.5 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-60 flex items-center gap-2"
               >
                 {aSub && <Spinner />}
-                {aSub ? "Creating…" : "Create Inventory Item"}
+                {aSub ? t("creating") : t("createInventoryItem")}
               </button>
             </div>
           </form>

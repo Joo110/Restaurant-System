@@ -1,5 +1,6 @@
 // src/components/Tables/AddTableModal.tsx
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useOutletContext } from "react-router-dom";
 import type { ApiBranch } from "../../layout/Topbar";
 
@@ -7,10 +8,8 @@ interface AddTableModalProps {
   isOpen:    boolean;
   onClose:   () => void;
   onAdd:     (table: { tableNumber: string; seats: number; area: string; branchId?: string }) => Promise<void> | void;
-  branchId?: string; // optional override
+  branchId?: string;
 }
-
-const AREAS = ["indoor", "outdoor"];
 
 type FormErrors = {
   tableNumber?: string;
@@ -20,8 +19,14 @@ type FormErrors = {
 };
 
 export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branchIdProp }: AddTableModalProps) {
-  // ── Branch resolution (نفس نفس pattern الـ AddEmployeeModal) ──
-  const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
+  const { t } = useTranslation();
+
+  const AREAS = [
+    { value: "indoor",  label: t("tables.addTableModal.areas.indoor") },
+    { value: "outdoor", label: t("tables.addTableModal.areas.outdoor") },
+  ];
+
+  const outlet       = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranch = outlet?.activeBranch ?? null;
   const effectiveBranchId =
     branchIdProp ??
@@ -37,23 +42,24 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
 
   if (!isOpen) return null;
 
-  // ── Validation ──
   const validate = (): FormErrors => {
     const e: FormErrors = {};
+    const k = "tables.addTableModal.errors";
+
     if (!tableNumber.trim())
-      e.tableNumber = "Table number is required.";
+      e.tableNumber = t(`${k}.tableNumberRequired`);
     else if (tableNumber.trim().length < 2)
-      e.tableNumber = "Table number must be at least 2 characters.";
+      e.tableNumber = t(`${k}.tableNumberTooShort`);
 
     if (!seats.trim())
-      e.seats = "Number of seats is required.";
+      e.seats = t(`${k}.seatsRequired`);
     else if (isNaN(Number(seats)) || Number(seats) <= 0)
-      e.seats = "Seats must be a positive number.";
+      e.seats = t(`${k}.seatsInvalid`);
     else if (Number(seats) > 50)
-      e.seats = "Seats cannot exceed 50.";
+      e.seats = t(`${k}.seatsTooMany`);
 
     if (!effectiveBranchId)
-      e.general = "Please select a branch before adding a table.";
+      e.general = t(`${k}.noBranch`);
 
     return e;
   };
@@ -71,11 +77,10 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
         area,
         branchId:    effectiveBranchId,
       });
-      // reset
       setTableNumber(""); setSeats(""); setArea("indoor"); setErrors({});
       onClose();
     } catch (err: any) {
-      const msg = err?.response?.data?.message ?? err?.message ?? "Failed to create table.";
+      const msg = err?.response?.data?.message ?? err?.message ?? t("tables.addTableModal.errors.failed");
       setErrors((prev) => ({ ...prev, general: msg }));
     } finally {
       setIsLoading(false);
@@ -94,8 +99,8 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-blue-50 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
 
-        <h2 className="text-xl font-bold text-slate-900">Add New Table</h2>
-        <p className="text-sm text-slate-500 mt-1 mb-6">Configure details for the new unit</p>
+        <h2 className="text-xl font-bold text-slate-900">{t("tables.addTableModal.title")}</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-6">{t("tables.addTableModal.subtitle")}</p>
 
         <div className="h-px bg-slate-200 mb-6" />
 
@@ -116,7 +121,7 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
           <div className="flex items-center gap-2 bg-blue-100 border border-blue-200 rounded-xl px-3 py-2 mb-4">
             <span className="text-blue-600 text-xs">📍</span>
             <p className="text-xs text-blue-700 font-medium">
-              Branch: {activeBranch?.name ?? effectiveBranchId}
+              {t("tables.addTableModal.branch")}: {activeBranch?.name ?? effectiveBranchId}
             </p>
           </div>
         )}
@@ -125,11 +130,11 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Table Number <span className="text-red-400">*</span>
+              {t("tables.addTableModal.tableNumber")} <span className="text-red-400">{t("tables.addTableModal.required")}</span>
             </label>
             <input
               type="text"
-              placeholder="e.g. T01"
+              placeholder={t("tables.addTableModal.tableNumberPlaceholder")}
               value={tableNumber}
               onChange={(e) => {
                 setTableNumber(e.target.value);
@@ -145,11 +150,11 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Seats <span className="text-red-400">*</span>
+              {t("tables.addTableModal.seats")} <span className="text-red-400">{t("tables.addTableModal.required")}</span>
             </label>
             <input
               type="number"
-              placeholder="e.g. 4"
+              placeholder={t("tables.addTableModal.seatsPlaceholder")}
               value={seats}
               min={1}
               max={50}
@@ -169,14 +174,18 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
 
         {/* Area */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Area</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            {t("tables.addTableModal.area")}
+          </label>
           <div className="relative">
             <select
               value={area}
               onChange={(e) => setArea(e.target.value)}
-              className="w-full appearance-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 capitalize"
+              className="w-full appearance-none px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
             >
-              {AREAS.map((a) => <option key={a} value={a} className="capitalize">{a}</option>)}
+              {AREAS.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
             </select>
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">▾</span>
           </div>
@@ -189,7 +198,7 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
             disabled={isLoading}
             className="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t("tables.addTableModal.cancel")}
           </button>
           <button
             onClick={handleSubmit}
@@ -202,7 +211,7 @@ export default function AddTableModal({ isOpen, onClose, onAdd, branchId: branch
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
             )}
-            {isLoading ? "Creating..." : "Create Table"}
+            {isLoading ? t("tables.addTableModal.creating") : t("tables.addTableModal.createTable")}
           </button>
         </div>
       </div>

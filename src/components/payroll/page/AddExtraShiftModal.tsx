@@ -1,5 +1,6 @@
 // src/components/Inventory/page/SupplierManagement.tsx
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import AddSupplierModal from "../../Supplier/page/Addsuppliermodal";
 import EditSupplierModal from "../../Supplier/page/Editsuppliermodal";
 import type { Supplier as ServiceSupplier } from "../../Supplier/services/supplierService";
@@ -26,6 +27,8 @@ const mockSuppliers: Supplier[] = [
 ];
 
 export default function SupplierManagement() {
+  const { t } = useTranslation();
+
   const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -41,29 +44,32 @@ export default function SupplierManagement() {
     return matchSearch;
   });
 
+  const statusLabel = (status: Supplier["status"]) =>
+    status === "Active" ? t("suppliers.management.status.active") : t("suppliers.management.status.inactive");
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-5 font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Supplier Management</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Manage and track all your supply chain partners</p>
+          <h1 className="text-xl font-bold text-slate-900">{t("suppliers.management.title")}</h1>
+          <p className="text-sm text-slate-400 mt-0.5">{t("suppliers.management.description")}</p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
           className="w-full sm:w-auto px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors"
         >
-          + Add Supplier
+          {t("suppliers.management.addSupplier")}
         </button>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {[
-          { label: "Total Suppliers", value: suppliers.length, color: "text-slate-800" },
-          { label: "Active", value: suppliers.filter((s) => s.status === "Active").length, color: "text-green-600" },
-          { label: "Inactive", value: suppliers.filter((s) => s.status === "Inactive").length, color: "text-red-500" },
-          { label: "Total Items Supplied", value: suppliers.reduce((a, s) => a + s.itemsSupplied, 0), color: "text-blue-600" },
+          { label: t("suppliers.management.stats.totalSuppliers"), value: suppliers.length, color: "text-slate-800" },
+          { label: t("suppliers.management.stats.active"), value: suppliers.filter((s) => s.status === "Active").length, color: "text-green-600" },
+          { label: t("suppliers.management.stats.inactive"), value: suppliers.filter((s) => s.status === "Inactive").length, color: "text-red-500" },
+          { label: t("suppliers.management.stats.totalItemsSupplied"), value: suppliers.reduce((a, s) => a + s.itemsSupplied, 0), color: "text-blue-600" },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
             <p className="text-xs text-slate-400 mb-1">{stat.label}</p>
@@ -82,7 +88,7 @@ export default function SupplierManagement() {
           </span>
           <input
             type="text"
-            placeholder="Search supplier or contact..."
+            placeholder={t("suppliers.management.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -99,7 +105,7 @@ export default function SupplierManagement() {
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {f}
+              {t(`suppliers.management.filters.${f.toLowerCase()}`)}
             </button>
           ))}
         </div>
@@ -111,13 +117,13 @@ export default function SupplierManagement() {
           <table className="w-full text-sm min-w-[700px]">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr className="text-slate-500 font-semibold text-xs uppercase tracking-wide">
-                <th className="py-3 px-4 sm:px-5 text-left">Supplier</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Contact</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Categories</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Bank</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Items</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Status</th>
-                <th className="py-3 px-4 sm:px-5 text-left">Actions</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.supplier")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.contact")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.categories")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.bank")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.items")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.status")}</th>
+                <th className="py-3 px-4 sm:px-5 text-left">{t("suppliers.management.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -148,13 +154,15 @@ export default function SupplierManagement() {
                   <td className="py-3.5 px-4 sm:px-5 text-slate-600">{s.bank}</td>
                   <td className="py-3.5 px-4 sm:px-5">
                     <span className="font-semibold text-slate-700">{s.itemsSupplied}</span>
-                    <span className="text-xs text-slate-400 ml-1">items</span>
+                    <span className="text-xs text-slate-400 ml-1">{t("suppliers.management.table.itemsLabel")}</span>
                   </td>
                   <td className="py-3.5 px-4 sm:px-5">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      s.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                    }`}>
-                      {s.status}
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        s.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {statusLabel(s.status)}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 sm:px-5">
@@ -163,13 +171,13 @@ export default function SupplierManagement() {
                         onClick={() => setEditSupplier(s)}
                         className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                       >
-                        ✏ Edit
+                        ✏ {t("common.edit")}
                       </button>
                       <button
                         onClick={() => setSuppliers((prev) => prev.filter((x) => x.id !== s.id))}
                         className="px-3 py-1.5 rounded-lg border border-red-100 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
                       >
-                        🗑 Delete
+                        🗑 {t("common.delete")}
                       </button>
                     </div>
                   </td>
@@ -181,7 +189,7 @@ export default function SupplierManagement() {
 
         {filtered.length === 0 && (
           <div className="py-12 text-center text-slate-400 text-sm">
-            No suppliers found
+            {t("suppliers.management.noSuppliersFound")}
           </div>
         )}
       </div>
