@@ -20,7 +20,7 @@ function isObjectId(value?: string) {
 }
 
 export default function StaffPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // ── Branch resolution ──

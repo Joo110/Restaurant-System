@@ -58,7 +58,6 @@ export default function OrderSettlementModal({
   dispatchId,
   orderId = "1230",
   totalValue = 195,
-  paymentMethod = "Cash on Delivery",
   onCancel,
   onSuccess,
 }: OrderSettlementModalProps) {

@@ -15,7 +15,7 @@ type LocalItem = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function EditOrder() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
