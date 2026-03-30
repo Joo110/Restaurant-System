@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import type { ApiBranch } from "../../layout/Topbar";
@@ -23,7 +23,6 @@ export default function StaffPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // ── Branch resolution ──
   const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranch = outlet?.activeBranch ?? null;
 
@@ -61,7 +60,12 @@ export default function StaffPage() {
   const from = totalDocs === 0 ? 0 : (currentPage - 1) * limit + 1;
   const to = Math.min(currentPage * limit, totalDocs);
 
-  /* ── Delete ── */
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const handleDeleteClick = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     setTargetEmployee({ id, name });
@@ -75,6 +79,7 @@ export default function StaffPage() {
     try {
       await deleteEmployeeFn(targetEmployee.id);
       invalidateQuery("employees");
+      refetch();
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
@@ -83,7 +88,6 @@ export default function StaffPage() {
     }
   };
 
-  /* ── Pagination ── */
   const handlePageChange = (p: number) => {
     if (p < 1 || p > totalPages) return;
     setCurrentPage(p);
@@ -100,13 +104,9 @@ export default function StaffPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 sm:p-5 font-sans">
-      {/* Layout */}
       <div className="flex flex-col lg:flex-row gap-5">
-        {/* ── Left — Table ── */}
         <div className="flex-1 min-w-0">
-          {/* Filters row */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-            {/* Search */}
             <div className="relative w-full sm:max-w-xs">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -126,7 +126,6 @@ export default function StaffPage() {
               />
             </div>
 
-            {/* Role filter pills */}
             <div className="flex gap-2 overflow-x-auto pb-0.5">
               {roleFilters.map((r) => (
                 <button
@@ -154,7 +153,6 @@ export default function StaffPage() {
             </button>
           </div>
 
-          {/* Table */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[440px]">
@@ -232,7 +230,7 @@ export default function StaffPage() {
                               title={t("deleteEmployee")}
                             >
                               {isDeleting ? (
-                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                                 </svg>
@@ -254,7 +252,6 @@ export default function StaffPage() {
             </div>
           </div>
 
-          {/* Pagination */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 text-sm text-slate-500">
             <span>
               {totalDocs === 0 ? (
@@ -295,7 +292,6 @@ export default function StaffPage() {
           </div>
         </div>
 
-        {/* ── Right — Staff Overview ── */}
         <div className="w-full lg:w-56 shrink-0">
           <div className="bg-slate-900 text-white rounded-2xl p-5">
             <h2 className="font-bold text-base mb-4">{t("staffOverview")}</h2>
@@ -338,7 +334,6 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Add Modal */}
       {showAdd && (
         <AddEmployeeModal
           branchId={effectiveBranchId}
@@ -349,7 +344,6 @@ export default function StaffPage() {
         />
       )}
 
-      {/* Delete Confirm Modal */}
       {showConfirm && targetEmployee && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"

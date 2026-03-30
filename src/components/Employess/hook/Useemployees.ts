@@ -16,9 +16,6 @@ import { subscribeQuery } from '../../../hook/queryClient';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/**
- * useEmployees - hook for employees list with filtering/pagination
- */
 export const useEmployees = (params?: EmployeesQueryParams) => {
   const [data, setData] = useState<EmployeesListResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -33,6 +30,7 @@ export const useEmployees = (params?: EmployeesQueryParams) => {
     controllerRef.current = new AbortController();
     setIsLoading(true);
     setError(null);
+
     try {
       const res = await getEmployees(params);
       if (!mountedRef.current) return;
@@ -50,9 +48,11 @@ export const useEmployees = (params?: EmployeesQueryParams) => {
   useEffect(() => {
     mountedRef.current = true;
     fetcher();
+
     const unsub = subscribeQuery('employees', () => {
       fetcher();
     });
+
     return () => {
       mountedRef.current = false;
       controllerRef.current?.abort();
@@ -71,9 +71,6 @@ export const useEmployees = (params?: EmployeesQueryParams) => {
   };
 };
 
-/**
- * useEmployee - hook for a single employee by id
- */
 export const useEmployee = (id: string) => {
   const [data, setData] = useState<Employee | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -99,9 +96,11 @@ export const useEmployee = (id: string) => {
   useEffect(() => {
     mountedRef.current = true;
     fetcher();
+
     const unsub = subscribeQuery('employees', () => {
       fetcher();
     });
+
     return () => {
       mountedRef.current = false;
       unsub();
@@ -110,8 +109,6 @@ export const useEmployee = (id: string) => {
 
   return { data, isLoading, isError: !!error, error, refetch: fetcher };
 };
-
-/* ----------------- mutation helpers ----------------- */
 
 export const createEmployeeFn = async (payload: CreateEmployeeDTO) => {
   return createEmployee(payload);

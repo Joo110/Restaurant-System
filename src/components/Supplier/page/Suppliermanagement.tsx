@@ -1,41 +1,50 @@
-// src/components/Inventory/page/SupplierManagement.tsx
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import AddSupplierModal from "./Addsuppliermodal";
 import EditSupplierModal from "./Editsuppliermodal";
 import { useSuppliers, deleteSupplierFn } from "../hook/useSuppliers";
 import type { Supplier } from "../services/supplierService";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export default function SupplierManagement() {
   const { t } = useTranslation();
 
-  const [search,        setSearch]        = useState("");
-  const [showAdd,       setShowAdd]       = useState(false);
-  const [editSupplier,  setEditSupplier]  = useState<Supplier | null>(null);
-  const [activeFilter,  setActiveFilter]  = useState("all");
-  const [deletingId,    setDeletingId]    = useState<string | null>(null);
-  const [page,          setPage]          = useState(1);
+  const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const queryParams = {
     page,
     limit: 20,
     ...(search ? { keyword: search } : {}),
+    ...(activeFilter !== "all" ? { status: activeFilter === "active" ? "Active" : "Inactive" } : {}),
   };
 
   const { data, isLoading, isError, refetch } = useSuppliers(queryParams);
   const suppliers: Supplier[] = data?.data ?? [];
 
-  const filtered = suppliers.filter((s) => {
-    if (activeFilter === "active")   return s.status === "Active";
-    if (activeFilter === "inactive") return s.status === "Inactive";
-    return true;
-  });
+  // ── Server-side pagination ──────────────────────────────────────────────────
+  const pagination = data?.paginationResult ?? (data as any)?.pagination ?? (data as any)?.meta ?? {};
 
-  const totalDocs    = data?.paginationResult?.totalDocs   ?? suppliers.length;
-  const totalPages   = data?.paginationResult?.totalPages  ?? 1;
-  const activeCount  = suppliers.filter((s) => s.status === "Active").length;
+  const totalDocs: number   = pagination?.totalDocs ?? pagination?.total ?? (data as any)?.results ?? suppliers.length;
+  const totalPages: number  = pagination?.totalPages ?? pagination?.pages ?? (totalDocs > 0 ? Math.ceil(totalDocs / 20) : 1);
+  const serverPage: number  = pagination?.currentPage ?? pagination?.page ?? page;
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Stats — computed from current page data (server handles filtering via queryParams)
+  const activeCount   = suppliers.filter((s) => s.status === "Active").length;
   const inactiveCount = suppliers.filter((s) => s.status === "Inactive").length;
-  const totalItems   = suppliers.reduce((a, s) => a + (s.itemsSupplied ?? 0), 0);
+  const totalItems    = suppliers.reduce((a, s) => a + (s.itemsSupplied ?? 0), 0);
+
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -55,8 +64,6 @@ export default function SupplierManagement() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-5 font-sans">
-
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{t("supplierManagement")}</h1>
@@ -70,13 +77,12 @@ export default function SupplierManagement() {
         </button>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: t("totalSuppliers"),    value: totalDocs,     color: "text-slate-800" },
-          { label: t("active"),            value: activeCount,   color: "text-green-600" },
-          { label: t("inactive"),          value: inactiveCount, color: "text-red-500"   },
-          { label: t("totalItemsSupplied"), value: totalItems,   color: "text-blue-600"  },
+          { label: t("totalSuppliers"), value: totalDocs,      color: "text-slate-800" },
+          { label: t("active"),         value: activeCount,    color: "text-green-600" },
+          { label: t("inactive"),       value: inactiveCount,  color: "text-red-500"   },
+          { label: t("totalItemsSupplied"), value: totalItems, color: "text-blue-600"  },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
             <p className="text-xs text-slate-400 mb-1">{stat.label}</p>
@@ -85,7 +91,6 @@ export default function SupplierManagement() {
         ))}
       </div>
 
-      {/* Filters + Search */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -98,10 +103,14 @@ export default function SupplierManagement() {
             type="text"
             placeholder={t("searchSupplier")}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+
         <div className="flex gap-2">
           {[
             { key: "all",      label: t("all")      },
@@ -110,7 +119,10 @@ export default function SupplierManagement() {
           ].map((f) => (
             <button
               key={f.key}
-              onClick={() => setActiveFilter(f.key)}
+              onClick={() => {
+                setActiveFilter(f.key);
+                setPage(1);
+              }}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                 activeFilter === f.key
                   ? "bg-blue-500 text-white"
@@ -123,7 +135,6 @@ export default function SupplierManagement() {
         </div>
       </div>
 
-      {/* Error state */}
       {isError && (
         <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 flex items-center justify-between">
           <span>{t("failedToLoadSuppliers")}</span>
@@ -131,7 +142,6 @@ export default function SupplierManagement() {
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="py-16 text-center text-slate-400 text-sm">
@@ -155,8 +165,8 @@ export default function SupplierManagement() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => {
-                const id   = (s.id ?? s._id) as string;
+              {suppliers.map((s) => {
+                const id = (s.id ?? s._id) as string;
                 const cats: string[] = Array.isArray(s.categories)
                   ? s.categories
                   : typeof s.categories === "string"
@@ -225,30 +235,75 @@ export default function SupplierManagement() {
           </table>
         )}
 
-        {!isLoading && filtered.length === 0 && (
+        {!isLoading && suppliers.length === 0 && (
           <div className="py-12 text-center text-slate-400 text-sm">
             {t("noSuppliersFound")}
           </div>
         )}
       </div>
 
-      {/* Pagination */}
+      {/* ── Pagination ─────────────────────────────────────────────────────── */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <p className="text-xs text-slate-400">
-            {t("page")} {page} {t("of")} {totalPages}
+            {t("page")} {serverPage} {t("of")} {totalPages}
+            {totalDocs > 0 && ` · ${totalDocs} ${t("total")}`}
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-1">
+            {/* First */}
+            {serverPage > 3 && (
+              <>
+                <button
+                  disabled={isLoading}
+                  onClick={() => setPage(1)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium hover:bg-slate-100 text-slate-600 disabled:opacity-50"
+                >
+                  1
+                </button>
+                {serverPage > 4 && <span className="w-7 h-7 flex items-center justify-center text-slate-300 text-xs">…</span>}
+              </>
+            )}
+
+            {/* Visible range */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => Math.abs(p - serverPage) <= 2)
+              .map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  disabled={isLoading}
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium transition-all disabled:opacity-50 ${
+                    serverPage === p ? "bg-blue-500 text-white" : "hover:bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+
+            {/* Last */}
+            {serverPage < totalPages - 2 && (
+              <>
+                {serverPage < totalPages - 3 && <span className="w-7 h-7 flex items-center justify-center text-slate-300 text-xs">…</span>}
+                <button
+                  disabled={isLoading}
+                  onClick={() => setPage(totalPages)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium hover:bg-slate-100 text-slate-600 disabled:opacity-50"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+
             <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 ml-1"
             >
               {t("prev")}
             </button>
             <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               {t("next")}
@@ -256,19 +311,25 @@ export default function SupplierManagement() {
           </div>
         </div>
       )}
+      {/* ─────────────────────────────────────────────────────────────────── */}
 
-      {/* Modals */}
       {showAdd && (
         <AddSupplierModal
           onClose={() => setShowAdd(false)}
-          onSuccess={() => { setShowAdd(false); refetch(); }}
+          onSuccess={() => {
+            setShowAdd(false);
+            refetch();
+          }}
         />
       )}
       {editSupplier && (
         <EditSupplierModal
           supplier={editSupplier}
           onClose={() => setEditSupplier(null)}
-          onSuccess={() => { setEditSupplier(null); refetch(); }}
+          onSuccess={() => {
+            setEditSupplier(null);
+            refetch();
+          }}
         />
       )}
     </div>

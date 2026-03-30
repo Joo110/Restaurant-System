@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { DollarSign, ShoppingBag, TrendingUp, Receipt, MapPin } from "lucide-react";
-import { useExecutive } from "../../dashboard/hook/useAccounts";
+import { useExecutive, periodToRange, type Period } from "../../dashboard/hook/useAccounts";
 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 const Sparkline = ({ color, fill }: { color: string; fill: string }) => (
@@ -57,7 +57,6 @@ const BranchCard = ({
   name: string; location: string; revenue: number; profit: number; change: string;
 }) => {
   const { t } = useTranslation();
-
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-center gap-3 mb-3">
@@ -132,36 +131,46 @@ const RevenueByBranch = ({ branches }: { branches: { name: string; revenue: numb
 export default function ExecutiveDashboard() {
   const { t } = useTranslation();
 
-  const [period, setPeriod] = useState<"Today" | "This Week" | "This Month">("Today");
-  const [from,   setFrom]   = useState("2026-01-01");
-  const [to,     setTo]     = useState("2026-03-31");
+  // Period state — drives from/to automatically
+  const [period, setPeriod] = useState<Period>("today");
 
+  // Manual date overrides — only active when user edits directly
+  const [manualFrom, setManualFrom] = useState("");
+  const [manualTo,   setManualTo]   = useState("");
+
+  // Resolve: manual dates win over period-derived dates
+  const { from, to } = useMemo(() => {
+    if (manualFrom && manualTo) return { from: manualFrom, to: manualTo };
+    return periodToRange(period);
+  }, [period, manualFrom, manualTo]);
+
+  // Hook re-fetches automatically whenever from/to change
   const { data, isLoading } = useExecutive({ from, to });
   const e = data?.data;
 
   const stats = [
     {
-      icon: DollarSign,  label: t("totalRevenue"),
+      icon: DollarSign, label: t("totalRevenue"),
       value: `$${(e?.summary.totalRevenue.value ?? 0).toLocaleString()}`,
       badge: e?.summary.totalRevenue.change,
-      color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill,
+      color: "text-green-500", sparkColor: "#22c55e", sparkFill: greenFill,
     },
     {
       icon: ShoppingBag, label: t("totalOrders"),
       value: String(e?.summary.totalOrders.value ?? 0),
       badge: e?.summary.totalOrders.change,
-      color: "text-green-500",  sparkColor: "#22c55e", sparkFill: greenFill,
+      color: "text-green-500", sparkColor: "#22c55e", sparkFill: greenFill,
     },
     {
-      icon: TrendingUp,  label: t("netProfit"),
+      icon: TrendingUp, label: t("netProfit"),
       value: `$${(e?.summary.netProfit ?? 0).toLocaleString()}`,
       color: (e?.summary.netProfit ?? 0) >= 0 ? "text-orange-400" : "text-red-500",
       sparkColor: "#fb923c", sparkFill: orangeFill,
     },
     {
-      icon: Receipt,     label: t("totalExpenses"),
+      icon: Receipt, label: t("totalExpenses"),
       value: `$${(e?.summary.totalExpenses ?? 0).toLocaleString()}`,
-      color: "text-red-400",    sparkColor: "#f87171", sparkFill: redFill,
+      color: "text-red-400", sparkColor: "#f87171", sparkFill: redFill,
     },
   ];
 
@@ -175,29 +184,53 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="space-y-6">
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{t("dashboardOverview")}</h2>
           <p className="text-sm text-gray-400">
-            {t("realTimePerformanceAcrossLocations", { count: e?.branchPerformance.length ?? 0 })}
+            {t("realTimePerformanceAcrossLocations", { count: e?.branchPerformance?.length ?? 0 })}
           </p>
+          {/* Active range display */}
+          <p className="text-xs text-gray-300 mt-0.5">{from} → {to}</p>
         </div>
+
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Period shortcuts — auto-compute from/to and re-fetch */}
           <div className="flex bg-white border border-gray-200 rounded-xl p-1 gap-1">
-            {(["Today", "This Week", "This Month"] as const).map((p) => (
-              <button key={p} onClick={() => setPeriod(p)}
+            {(["today", "thisWeek", "thisMonth"] as Period[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setPeriod(p);
+                  setManualFrom(""); // clear manual override
+                  setManualTo("");
+                }}
                 className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  period === p ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"
+                  period === p && !manualFrom
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-500 hover:bg-gray-50"
                 }`}
-              >{t(p === "Today" ? "today" : p === "This Week" ? "thisWeek" : "thisMonth")}</button>
+              >
+                {t(p)}
+              </button>
             ))}
           </div>
-          {/* Date range */}
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="text-xs border border-gray-200 rounded-xl px-2 py-2 outline-none" />
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="text-xs border border-gray-200 rounded-xl px-2 py-2 outline-none" />
+
+          {/* Manual date range — overrides period buttons */}
+          <input
+            type="date"
+            value={manualFrom || from}
+            onChange={(e) => setManualFrom(e.target.value)}
+            className="text-xs border border-gray-200 rounded-xl px-2 py-2 outline-none"
+          />
+          <input
+            type="date"
+            value={manualTo || to}
+            onChange={(e) => setManualTo(e.target.value)}
+            className="text-xs border border-gray-200 rounded-xl px-2 py-2 outline-none"
+          />
         </div>
       </div>
 
@@ -219,6 +252,7 @@ export default function ExecutiveDashboard() {
         </div>
         <RevenueByBranch branches={e?.topPerformingLocations ?? []} />
       </div>
+
     </div>
   );
 }

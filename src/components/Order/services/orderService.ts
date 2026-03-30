@@ -3,10 +3,6 @@ import api from '../../../lib/axios';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/**
- * Order service — thin axios wrappers for the Orders API
- */
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type OrderItemDTO = {
@@ -53,24 +49,41 @@ export type Order = {
   [k: string]: any;
 };
 
+// ── Pagination shapes — covers all common API conventions ────────────────────
+// Shape A: { paginationResult: { currentPage, limit, totalDocs, totalPages } }
+// Shape B: { pagination: { totalPages, pages, total, page } }
+// Shape C: { meta: { totalPages, pages, total, page } }
+
+type PaginationResult = {
+  currentPage?: number;
+  limit?:       number;
+  totalDocs?:   number;
+  totalPages?:  number;
+};
+
+type PaginationMeta = {
+  page?:       number;
+  limit?:      number;
+  total?:      number;
+  pages?:      number;
+  totalPages?: number;
+};
+
 export type OrdersListResponse = {
-  message?: string;
-  data?: Order[];
-  results?: number;
-  paginationResult?: {
-    currentPage?: number;
-    limit?:       number;
-    totalDocs?:   number;
-    totalPages?:  number;
-  };
+  message?:          string;
+  data?:             Order[];
+  results?:          number;          // sometimes used as totalDocs shorthand
+  paginationResult?: PaginationResult; // Shape A (most common in this codebase)
+  pagination?:       PaginationMeta;  // Shape B
+  meta?:             PaginationMeta;  // Shape C
   [k: string]: any;
 };
 
 export type OrdersQueryParams = {
   sort?:      string;
-  status?:    string;   // lifecycle: pending | ready | completed | cancelled
-  orderType?: string;   // ← FIX: "dine-in" | "takeaway" | "delivery"  (was wrongly mapped to status before)
-  from?:      string;   // YYYY-MM-DD
+  status?:    string;
+  orderType?: string;
+  from?:      string;
   to?:        string;
   keyword?:   string;
   limit?:     number;
@@ -87,7 +100,6 @@ export type CreateOrderDTO = {
   branchId:      string;
   notes?:        string;
 
-  // ── delivery fields — REQUIRED for dispatch auto-creation ────
   customer?: {
     name?:  string;
     phone?: string;
@@ -114,58 +126,36 @@ export type UpdateStatusDTO = {
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 
-/**
- * POST /api/v1/orders
- */
 export const createOrder = async (data: CreateOrderDTO): Promise<any> => {
   const res = await api.post('/orders', data);
   return res.data;
 };
 
-/**
- * GET /api/v1/orders
- * Supports orderType param for filtering by delivery/dine-in/takeaway
- */
 export const getOrders = async (params?: OrdersQueryParams): Promise<OrdersListResponse> => {
   const res = await api.get('/orders', { params });
   return res.data;
 };
 
-/**
- * GET /api/v1/orders/:id
- */
 export const getOrderById = async (id: string): Promise<Order> => {
   const res = await api.get(`/orders/${id}`);
   return res.data;
 };
 
-/**
- * PATCH /api/v1/orders/:id
- */
 export const updateOrder = async (id: string, data: UpdateOrderDTO): Promise<any> => {
   const res = await api.patch(`/orders/${id}`, data);
   return res.data;
 };
 
-/**
- * PATCH /api/v1/orders/status/:id
- */
 export const updateOrderStatus = async (id: string, payload: UpdateStatusDTO): Promise<any> => {
   const res = await api.patch(`/orders/status/${id}`, payload);
   return res.data;
 };
 
-/**
- * PATCH /api/v1/orders/cancel/:id
- */
 export const cancelOrder = async (id: string): Promise<any> => {
   const res = await api.patch(`/orders/cancel/${id}`);
   return res.data;
 };
 
-/**
- * DELETE /api/v1/orders/:id
- */
 export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`/orders/${id}`);
 };

@@ -539,6 +539,124 @@
   "inventoryPage": "المخزون",
   "totalItems": "إجمالي العناصر",
   
+  "adminUsers": {
+    "title": "إدارة المستخدمين",
+    "subtitle": "إدارة وتنظيم حسابات المستخدمين والصلاحيات",
+    "totalUsers": "إجمالي المستخدمين",
+    "loading": "جاري تحميل البيانات...",
+    "noData": "لا توجد بيانات",
+    "noDataSub": "لم يتم العثور على أي مستخدمين في النظام",
+    "table": {
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "phone": "رقم الهاتف",
+      "status": "الحالة",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "active": "مفعّل",
+      "inactive": "معطّل"
+    },
+    "roles": {
+      "admin": "مسؤول",
+      "user": "مستخدم"
+    },
+    "actions": {
+      "toggleRole": "تبديل الدور",
+      "deactivate": "تعطيل",
+      "activate": "تفعيل"
+    }
+  },
+  "forgotPassword": {
+    "title": "نسيت كلمة المرور",
+    "subtitle": "أدخل بريدك الإلكتروني لإعادة تعيين كلمة المرور",
+    "emailLabel": "البريد الإلكتروني",
+    "placeholder": "chef@restaurant.com",
+    "sendCode": "إرسال الكود",
+    "resendCode": "إعادة إرسال",
+    "backToLogin": "العودة إلى تسجيل الدخول",
+    "successMsg": "تم إرسال كود إعادة التعيين إلى البريد",
+    "resendMsg": "تم إعادة إرسال الكود",
+    "sendFailed": "فشل إرسال الكود",
+    "resendFailed": "فشل إعادة الإرسال"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "مرحباً بعودتك، أدخل بريدك الإلكتروني وكلمة المرور.",
+    "emailPlaceholder": "البريد الإلكتروني",
+    "noAccount": "ليس لديك حساب؟",
+    "signUp": "إنشاء حساب",
+    "passwordPlaceholder": "كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "loginBtn": "تسجيل الدخول",
+    "loggingIn": "جاري تسجيل الدخول...",
+    "loginFailed": "فشل تسجيل الدخول"
+  },
+  "signUp": {
+    "title": "إنشاء حساب جديد",
+    "subtitle": "انضم إلى نظام إدارة المطعم الآن",
+    "fullName": "الاسم الكامل",
+    "namePlaceholder": "أدخل اسمك الكامل",
+    "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "phonePlaceholder": "01xxxxxxxxx",
+    "position": "المسمى الوظيفي",
+    "positionPlaceholder": "مدير، طاهي، موظف استقبال...",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "passwordPlaceholder": "••••••••",
+    "signUpBtn": "سجل الآن",
+    "signingUp": "جاري التسجيل...",
+    "loginLink": "لديك حساب بالفعل؟",
+    "loginLinkBtn": "تسجيل الدخول",
+    "successTitle": "تم التسجيل بنجاح!",
+    "successMsg": "تم التسجيل بنجاح — تحقق من البريد الإلكتروني أو سجل دخولك",
+    "loginAfterSuccess": "تسجيل الدخول",
+    "signUpFailed": "حدث خطأ أثناء التسجيل"
+  },
+  "updatePassword": {
+    "title": "تحديث كلمة المرور",
+    "subtitle": "قم بتأمين حسابك بكلمة مرور قوية.",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور الجديدة",
+    "currentPlaceholder": "أدخل كلمة المرور الحالية",
+    "newPlaceholder": "أدخل كلمة المرور الجديدة",
+    "confirmPlaceholder": "أكد كلمة المرور الجديدة",
+    "cancel": "إلغاء",
+    "updating": "جاري التحديث...",
+    "updateBtn": "تحديث كلمة المرور",
+    "strength": {
+      "weak": "ضعيفة",
+      "medium": "متوسطة",
+      "strong": "قوية"
+    },
+    "errors": {
+      "currentRequired": "كلمة المرور الحالية مطلوبة",
+      "newRequired": "كلمة المرور الجديدة مطلوبة",
+      "newTooShort": "يجب أن تكون 8 أحرف على الأقل",
+      "confirmRequired": "يرجى تأكيد كلمة المرور الجديدة",
+      "confirmMismatch": "كلمتا المرور غير متطابقتين",
+      "failed": "فشل تحديث كلمة المرور."
+    }
+  },
+  "userDashboard": {
+    "title": "لوحة التحكم",
+    "subtitle": "مرحباً بك في نظام إدارة المطعم",
+    "loading": "جاري تحميل البيانات...",
+    "welcomeMsg": "يسعدنا رؤيتك مجدداً في لوحة التحكم",
+    "nameCard": "الاسم",
+    "emailCard": "البريد الإلكتروني",
+    "phoneCard": "رقم الهاتف",
+    "quickActions": "الإجراءات السريعة",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "orders": "الطلبات",
+    "menuManagement": "إدارة القائمة",
+    "menuManagementSub": "تحكم كامل في عناصر القائمة والأسعار",
+    "reportsStats": "التقارير والإحصائيات",
+    "reportsStatsSub": "تتبع الأداء والمبيعات بشكل دقيق"
+  },
   "searchItem": "ابحث عن عنصر...",
   "criticalLow": "منخفض جداً",
   "reorderSoon": "يحتاج إعادة طلب",
@@ -1708,6 +1826,7 @@
       "failedToCancelOrder": "فشل إلغاء الطلب.",
       "failedToUpdateStatus": "فشل تحديث الحالة.",
       "delivery": "توصيل",
+      "pageOnly": "الصفحة فقط",
       "more": "أخرى",
       "cancelling": "جاري الإلغاء...",
       "cancelOrder": "إلغاء الطلب",

@@ -13,11 +13,6 @@ import { subscribeQuery } from '../../../hook/queryClient';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/**
- * useSuppliers - lightweight hook for suppliers list
- * Accepts optional params for filtering/pagination.
- * Returns { data, isLoading, isError, error, refetch }
- */
 export const useSuppliers = (params?: SuppliersQueryParams) => {
   const [data, setData] = useState<SuppliersListResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -32,6 +27,7 @@ export const useSuppliers = (params?: SuppliersQueryParams) => {
     controllerRef.current = new AbortController();
     setIsLoading(true);
     setError(null);
+
     try {
       const res = await getSuppliers(params);
       if (!mountedRef.current) return;
@@ -49,9 +45,11 @@ export const useSuppliers = (params?: SuppliersQueryParams) => {
   useEffect(() => {
     mountedRef.current = true;
     fetcher();
+
     const unsub = subscribeQuery('suppliers', () => {
       fetcher();
     });
+
     return () => {
       mountedRef.current = false;
       controllerRef.current?.abort();
@@ -70,25 +68,14 @@ export const useSuppliers = (params?: SuppliersQueryParams) => {
   };
 };
 
-/* ----------------- helper mutation hooks (lightweight wrappers) ----------------- */
-
-/**
- * createSupplierFn(payload) => Promise
- */
 export const createSupplierFn = async (payload: CreateSupplierDTO) => {
   return createSupplier(payload);
 };
 
-/**
- * deleteSupplierFn(supplierId) => Promise
- */
 export const deleteSupplierFn = async (supplierId: string) => {
   return deleteSupplier(supplierId);
 };
 
-/**
- * getSupplierByIdFn(supplierId) => Promise<Supplier>
- */
 export const getSupplierByIdFn = async (supplierId: string) => {
   return getSupplierById(supplierId);
 };

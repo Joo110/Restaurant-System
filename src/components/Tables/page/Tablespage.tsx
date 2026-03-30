@@ -35,9 +35,9 @@ const TableCard: React.FC<{
   const status = table.status?.toLowerCase() ?? "available";
 
   const STATUS_BTN: Record<string, { label: string; style: string }> = {
-    reserved:  { label: t("tables.page.card.checkIn"),    style: "bg-yellow-400 hover:bg-yellow-500 text-white" },
-    available: { label: t("tables.page.card.assignTable"),style: "bg-green-500  hover:bg-green-600  text-white" },
-    occupied:  { label: t("tables.page.card.release"),    style: "bg-purple-500 hover:bg-purple-600 text-white" },
+    reserved:  { label: t("tables.page.card.checkIn"),     style: "bg-yellow-400 hover:bg-yellow-500 text-white" },
+    available: { label: t("tables.page.card.assignTable"), style: "bg-green-500  hover:bg-green-600  text-white" },
+    occupied:  { label: t("tables.page.card.release"),     style: "bg-purple-500 hover:bg-purple-600 text-white" },
   };
 
   const btn = STATUS_BTN[status] ?? STATUS_BTN["available"];
@@ -136,31 +136,48 @@ export default function TablesPage() {
     (activeBranch?.branchId != null ? String(activeBranch.branchId) : undefined);
 
   // ── State ──
-  const [search,        setSearch]        = useState("");
-  const [areaFilter,    setAreaFilter]    = useState<AreaFilter>("All Tables");
-  const [statusFilter,  setStatusFilter]  = useState<string>("");
-  const [showAddModal,  setShowAddModal]  = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [search,         setSearch]         = useState("");
+  const [areaFilter,     setAreaFilter]     = useState<AreaFilter>("All Tables");
+  const [statusFilter,   setStatusFilter]   = useState<string>("");
+  const [showAddModal,   setShowAddModal]   = useState(false);
+  const [actionLoading,  setActionLoading]  = useState<string | null>(null);
   const [assigningTable, setAssigningTable] = useState<{ id: string; tableNumber: string } | null>(null);
+  const [page,           setPage]           = useState(1);
+
+  const PAGE_SIZE = 12;
 
   // ── Data ──
   const { data, isLoading, refetch } = useTables({
     ...(areaFilter !== "All Tables" ? { location: areaFilter as "indoor" | "outdoor" } : {}),
     ...(statusFilter ? { status: statusFilter as TableStatus } : {}),
     ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
-    limit: 50,
+    ...(search ? { keyword: search } : {}),
+    limit: PAGE_SIZE,
+    page,
   });
 
   const { data: statsData } = useTableStats(effectiveBranchId);
   const stats  = statsData?.data;
   const tables = data?.data ?? [];
 
+  // ── Server-side pagination ──────────────────────────────────────────────────
+  const pagination = (data as any)?.paginationResult ?? (data as any)?.pagination ?? (data as any)?.meta ?? {};
+
+  const totalDocs: number  = pagination?.totalDocs ?? pagination?.total ?? (data as any)?.results ?? 0;
+  const totalPages: number = pagination?.totalPages ?? pagination?.pages ?? (totalDocs > 0 ? Math.ceil(totalDocs / PAGE_SIZE) : 1);
+  const serverPage: number = pagination?.currentPage ?? pagination?.page ?? page;
+
+  const canGoPrev = serverPage > 1;
+  const canGoNext = serverPage < totalPages;
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // search is now sent to server, so filtered = tables directly
   const filtered = tables.filter((t) =>
-    t.tableNumber?.toLowerCase().includes(search.toLowerCase())
+    search ? t.tableNumber?.toLowerCase().includes(search.toLowerCase()) : true
   );
 
   // ── Stat cards ──
-  const total     = stats?.total     ?? tables.length;
+  const total     = stats?.total     ?? totalDocs;
   const occupied  = stats?.occupied  ?? tables.filter((t) => t.status === "occupied").length;
   const available = stats?.available ?? tables.filter((t) => t.status === "available").length;
   const reserved  = stats?.reserved  ?? tables.filter((t) => t.status === "reserved").length;
@@ -237,7 +254,7 @@ export default function TablesPage() {
               type="text"
               placeholder={t(`${tb}.searchPlaceholder`)}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="w-full pl-8 pr-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -246,7 +263,7 @@ export default function TablesPage() {
             {(["All Tables", "indoor", "outdoor"] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setAreaFilter(f)}
+                onClick={() => { setAreaFilter(f); setPage(1); }}
                 className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium capitalize transition-all ${
                   areaFilter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
@@ -262,7 +279,7 @@ export default function TablesPage() {
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-600 bg-white outline-none"
           >
             <option value="">{t(`${tb}.allStatus`)}</option>
@@ -284,24 +301,84 @@ export default function TablesPage() {
       {isLoading ? (
         <p className="text-center text-slate-400 text-sm py-12 animate-pulse">{t("tables.page.loading")}</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-          {filtered.map((table) => (
-            <div
-              key={table.id}
-              className={actionLoading === table.id ? "opacity-50 pointer-events-none" : ""}
-            >
-              <TableCard
-                table={table}
-                onAssign={(id, tableNumber) => setAssigningTable({ id, tableNumber })}
-                onCheckIn={(id, tableNumber) => setAssigningTable({ id, tableNumber })}
-                onRelease={(id) => handleRelease(id)}
-              />
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+            {filtered.map((table) => (
+              <div
+                key={table.id}
+                className={actionLoading === table.id ? "opacity-50 pointer-events-none" : ""}
+              >
+                <TableCard
+                  table={table}
+                  onAssign={(id, tableNumber) => setAssigningTable({ id, tableNumber })}
+                  onCheckIn={(id, tableNumber) => setAssigningTable({ id, tableNumber })}
+                  onRelease={(id) => handleRelease(id)}
+                />
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <p className="col-span-3 text-center text-slate-400 text-sm py-12">{t("tables.page.noTables")}</p>
+            )}
+          </div>
+
+          {/* ── Pagination ───────────────────────────────────────────────────── */}
+          {totalPages > 1 && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm flex items-center justify-between flex-wrap gap-3">
+              <p className="text-xs text-slate-400">
+                {totalDocs > 0
+                  ? `${(serverPage - 1) * PAGE_SIZE + 1}–${Math.min(serverPage * PAGE_SIZE, totalDocs)} of ${totalDocs}`
+                  : `${t("tables.page.stats.totalTables")}: ${tables.length}`}
+              </p>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={!canGoPrev || isLoading}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-40 text-sm"
+                >
+                  ‹
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - serverPage) <= 2)
+                  .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "…" ? (
+                      <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-slate-300 text-xs select-none">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        onClick={() => setPage(item as number)}
+                        disabled={isLoading}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 ${
+                          item === serverPage
+                            ? "bg-blue-600 text-white"
+                            : "hover:bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!canGoNext || isLoading}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-40 text-sm"
+                >
+                  ›
+                </button>
+              </div>
             </div>
-          ))}
-          {filtered.length === 0 && (
-            <p className="col-span-3 text-center text-slate-400 text-sm py-12">{t("tables.page.noTables")}</p>
           )}
-        </div>
+          {/* ─────────────────────────────────────────────────────────────────── */}
+        </>
       )}
 
       {/* ── Modals ── */}

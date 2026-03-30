@@ -36,6 +36,107 @@ function getAuthUser(): { role?: string; branchId?: string; name?: string } | nu
   }
 }
 
+/* ─────────────────────────────────────────
+   Language Toggle Component
+───────────────────────────────────────── */
+const LanguageToggle: React.FC<{ isAr: boolean; onToggle: () => void }> = ({
+  isAr,
+  onToggle,
+}) => {
+  return (
+    <button
+      onClick={onToggle}
+      title={isAr ? "Switch to English" : "التبديل للعربية"}
+      aria-label="Toggle language"
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        width: "72px",
+        height: "36px",
+        borderRadius: "999px",
+        border: "1.5px solid #e2e8f0",
+        background: isAr
+          ? "linear-gradient(135deg, #1e40af 0%, #2563eb 100%)"
+          : "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+        cursor: "pointer",
+        padding: "3px",
+        transition: "background 0.35s ease, border-color 0.35s ease",
+        boxShadow: isAr
+          ? "0 2px 8px rgba(37,99,235,0.25)"
+          : "0 1px 4px rgba(0,0,0,0.06)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Track labels */}
+      <span
+        style={{
+          position: "absolute",
+          left: "10px",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          color: isAr ? "rgba(255,255,255,0.55)" : "rgba(100,116,139,0.5)",
+          transition: "color 0.3s ease, opacity 0.3s ease",
+          userSelect: "none",
+          fontFamily: "system-ui, sans-serif",
+        }}
+      >
+        ع
+      </span>
+
+      <span
+        style={{
+          position: "absolute",
+          right: "9px",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          color: isAr ? "rgba(255,255,255,0.55)" : "rgba(100,116,139,0.5)",
+          transition: "color 0.3s ease, opacity 0.3s ease",
+          userSelect: "none",
+          fontFamily: "system-ui, sans-serif",
+        }}
+      >
+        EN
+      </span>
+
+      {/* Sliding thumb */}
+      <span
+        style={{
+          position: "absolute",
+          top: "3px",
+          left: isAr ? "3px" : "calc(100% - 33px)",
+          width: "30px",
+          height: "28px",
+          borderRadius: "999px",
+          background: isAr
+            ? "rgba(255,255,255,1)"
+            : "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "10px",
+          fontWeight: 800,
+          color: isAr ? "#1e40af" : "#fff",
+          boxShadow: isAr
+            ? "0 2px 6px rgba(30,64,175,0.2)"
+            : "0 2px 6px rgba(37,99,235,0.4)",
+          transition: "left 0.35s cubic-bezier(0.34,1.56,0.64,1), background 0.3s ease, color 0.3s ease",
+          userSelect: "none",
+          fontFamily: "system-ui, sans-serif",
+          letterSpacing: "0.04em",
+        }}
+      >
+        {isAr ? "ع" : "EN"}
+      </span>
+    </button>
+  );
+};
+
+/* ─────────────────────────────────────────
+   Main Topbar
+───────────────────────────────────────── */
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }) => {
   const { t, i18n } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -187,14 +288,8 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick, onLogout, onBranchChange }
           <RefreshCw size={15} />
         </button>
 
-        {/* Language Toggle */}
-        <button
-          onClick={toggleLang}
-          className="p-2 border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all bg-white text-xs font-bold w-9 h-9 flex items-center justify-center"
-          title={isAr ? t("switchToEnglish") : t("switchToArabic")}
-        >
-          {isAr ? "EN" : "عر"}
-        </button>
+        {/* ✅ Language Toggle — upgraded */}
+        <LanguageToggle isAr={isAr} onToggle={toggleLang} />
 
         {/* Bell */}
         <div className="relative">

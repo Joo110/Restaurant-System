@@ -1,86 +1,68 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { sendResetCode, resendResetCode } from '../services/passwordService';
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg,   setMsg]   = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSend = async () => {
-    setMsg(null);
-    setError(null);
+    setMsg(null); setError(null);
     try {
       await sendResetCode(email);
-      setMsg('تم إرسال كود إعادة التعيين إلى البريد');
+      setMsg(t("forgotPassword.successMsg"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'فشل إرسال الكود');
+      setError(e instanceof Error ? e.message : t("forgotPassword.sendFailed"));
     }
   };
 
   const handleResend = async () => {
-    setMsg(null);
-    setError(null);
+    setMsg(null); setError(null);
     try {
       await resendResetCode(email);
-      setMsg('تم إعادة إرسال الكود');
+      setMsg(t("forgotPassword.resendMsg"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'فشل إعادة الإرسال');
+      setError(e instanceof Error ? e.message : t("forgotPassword.resendFailed"));
     }
   };
 
   return (
-    <div
-      style={{ backgroundColor: '#1a73e8' }}
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8"
-    >
+    <div style={{ backgroundColor: '#1a73e8' }} className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-md w-full">
-        {/* White Card */}
-        <div
-          className="bg-white rounded-2xl overflow-hidden"
-          style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.15)' }}
-        >
+        <div className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.15)' }}>
+
           {/* Header */}
           <div className="p-6 sm:p-8 text-center border-b" style={{ borderColor: '#e5e7eb' }}>
-            <div
-              className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-3"
-              style={{ backgroundColor: '#1a73e8' }}
-            >
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-3" style={{ backgroundColor: '#1a73e8' }}>
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">نسيت كلمة المرور</h2>
-            <p className="text-gray-500 text-sm">أدخل بريدك الإلكتروني لإعادة تعيين كلمة المرور</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">{t("forgotPassword.title")}</h2>
+            <p className="text-gray-500 text-sm">{t("forgotPassword.subtitle")}</p>
           </div>
 
           {/* Body */}
           <div className="p-6 sm:p-8">
             <div className="space-y-5">
-              {/* Email Input */}
+              {/* Email */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  البريد الإلكتروني
-                </label>
-                <div
-                  className="flex items-center gap-3 px-3 py-2.5 border rounded-md transition-all"
-                  style={{ borderColor: '#d0d0d0' }}
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t("forgotPassword.emailLabel")}</label>
+                <div className="flex items-center gap-3 px-3 py-2.5 border rounded-md transition-all" style={{ borderColor: '#d0d0d0' }}
                   onFocusCapture={e => ((e.currentTarget as HTMLElement).style.borderColor = '#1a73e8')}
                   onBlurCapture={e => ((e.currentTarget as HTMLElement).style.borderColor = '#d0d0d0')}
                 >
                   <svg className="w-5 h-5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="chef@restaurant.com"
-                    className="w-full text-sm text-gray-700 placeholder-gray-400 outline-none bg-transparent"
-                  />
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder={t("forgotPassword.placeholder")}
+                    className="w-full text-sm text-gray-700 placeholder-gray-400 outline-none bg-transparent" />
                 </div>
               </div>
 
-              {/* Success Message */}
               {msg && (
                 <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-md px-3 py-2.5">
                   <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +72,6 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
 
-              {/* Error Message */}
               {error && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md px-3 py-2.5">
                   <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,48 +81,40 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
 
-              {/* Action Buttons */}
+              {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleSend}
+                <button onClick={handleSend}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-white font-semibold text-sm transition-all hover:opacity-90"
-                  style={{ backgroundColor: '#1a73e8' }}
-                >
+                  style={{ backgroundColor: '#1a73e8' }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  إرسال الكود
+                  {t("forgotPassword.sendCode")}
                 </button>
-                <button
-                  onClick={handleResend}
+                <button onClick={handleResend}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-md font-semibold text-sm transition-all hover:bg-gray-100 border"
-                  style={{ borderColor: '#d0d0d0', color: '#555' }}
-                >
+                  style={{ borderColor: '#d0d0d0', color: '#555' }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  إعادة إرسال
+                  {t("forgotPassword.resendCode")}
                 </button>
               </div>
 
               {/* Back to Login */}
               <div className="text-center pt-1">
-                <a
-                  href="/login"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
-                  style={{ color: '#1a73e8' }}
-                >
+                <a href="/login" className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline" style={{ color: '#1a73e8' }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                   </svg>
-                  العودة إلى تسجيل الدخول
+                  {t("forgotPassword.backToLogin")}
                 </a>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Logo */}
+        {/* Logo */}
         <div className="mt-6 text-center">
           <div className="inline-flex items-center gap-2 text-white">
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">

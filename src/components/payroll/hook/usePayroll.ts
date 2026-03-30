@@ -15,9 +15,6 @@ import { subscribeQuery } from '../../../hook/queryClient';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/**
- * usePayrolls - hook for payroll list with filtering/pagination
- */
 export const usePayrolls = (params?: PayrollQueryParams) => {
   const [data, setData] = useState<PayrollListResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -32,6 +29,7 @@ export const usePayrolls = (params?: PayrollQueryParams) => {
     controllerRef.current = new AbortController();
     setIsLoading(true);
     setError(null);
+
     try {
       const res = await getPayrolls(params);
       if (!mountedRef.current) return;
@@ -49,9 +47,11 @@ export const usePayrolls = (params?: PayrollQueryParams) => {
   useEffect(() => {
     mountedRef.current = true;
     fetcher();
+
     const unsub = subscribeQuery('payroll', () => {
       fetcher();
     });
+
     return () => {
       mountedRef.current = false;
       controllerRef.current?.abort();
@@ -70,9 +70,6 @@ export const usePayrolls = (params?: PayrollQueryParams) => {
   };
 };
 
-/**
- * usePayroll - hook for a single payroll record
- */
 export const usePayroll = (id?: string) => {
   const [data, setData] = useState<Payroll | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -83,6 +80,7 @@ export const usePayroll = (id?: string) => {
     if (!id) return;
     setIsLoading(true);
     setError(null);
+
     try {
       const res = await getPayrollById(id);
       if (!mountedRef.current) return;
@@ -98,9 +96,11 @@ export const usePayroll = (id?: string) => {
   useEffect(() => {
     mountedRef.current = true;
     fetcher();
+
     const unsub = subscribeQuery(`payroll:${id}`, () => {
       fetcher();
     });
+
     return () => {
       mountedRef.current = false;
       unsub();
@@ -112,35 +112,18 @@ export const usePayroll = (id?: string) => {
   return { data, isLoading, isError: !!error, error, refetch };
 };
 
-/* ----------------- mutation helpers ----------------- */
-
-/**
- * processPayrollFn(payload) => Promise
- * Calls POST /payroll/process
- */
 export const processPayrollFn = async (payload: ProcessPayrollDTO) => {
   return processPayroll(payload);
 };
 
-/**
- * updatePayrollFn(id, payload) => Promise
- * Calls PATCH /payroll/:id
- */
 export const updatePayrollFn = async (id: string, payload: UpdatePayrollDTO) => {
   return updatePayroll(id, payload);
 };
 
-/**
- * deletePayrollFn(id) => Promise
- * Calls DELETE /payroll/:id
- */
 export const deletePayrollFn = async (id: string) => {
   return deletePayroll(id);
 };
 
-/**
- * getPayrollByIdFn(id) => Promise<Payroll>
- */
 export const getPayrollByIdFn = async (id: string) => {
   return getPayrollById(id);
 };

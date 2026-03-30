@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { Search, Plus, Edit2, Trash2, X, RefreshCw, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useItems } from "../hook/useItems";
-import type { ItemsQueryParams } from "../services/itemService";
+//import type { ItemsQueryParams } from "../services/itemService";
 import { useDeleteItemMutation } from "../hook/useItemMutations";
 import type { ApiBranch } from "../../layout/Topbar";
 
@@ -101,12 +101,32 @@ const SkeletonCard = () => (
   </div>
 );
 
+function buildPageWindow(currentPage: number, totalPages: number, maxVisible = 5) {
+  if (totalPages <= maxVisible) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const half = Math.floor(maxVisible / 2);
+  let start = Math.max(1, currentPage - half);
+  let end = start + maxVisible - 1;
+
+  if (end > totalPages) {
+    end = totalPages;
+    start = Math.max(1, end - maxVisible + 1);
+  }
+
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
 export default function MenuManagement({ onAddItem, onEditItem, branchId, refreshTrigger }: MenuManagementProps) {
   const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<Category>("All Items");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  const PAGE_SIZE = 12;
 
   const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranchFromOutlet = outlet?.activeBranch ?? null;
@@ -127,6 +147,10 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
     console.log("MenuManagement - effectiveBranchId (derived):", effectiveBranchId);
   }, [branchId, activeBranchFromOutlet, effectiveBranchId]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [activeCategory, searchQuery]);
+
   const handleDelete = async (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
     if (!window.confirm(t("deleteItemConfirm", { name: item.name }))) return;
@@ -139,13 +163,15 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
     }
   };
 
-  const queryParams = useMemo<ItemsQueryParams>(() => {
-    const p: ItemsQueryParams = {};
-    if (activeCategory !== "All Items") p.category = activeCategory.toLowerCase();
-    if (searchQuery.trim()) p.search = searchQuery.trim();
-    return p;
-  }, [activeCategory, searchQuery]);
-
+ const queryParams = useMemo(() => ({
+  category:
+    activeCategory !== "All Items"
+      ? activeCategory.toLowerCase()
+      : undefined,
+  keyword: searchQuery.trim() || undefined,
+  page,
+  limit: PAGE_SIZE,
+}), [activeCategory, searchQuery, page]);
   const { data, isLoading, isError, error, refetch } = useItems(queryParams);
 
   useEffect(() => {
@@ -159,13 +185,7 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
     [data]
   );
 
-  const items: MenuItem[] = useMemo(() => {
-    return allItems.filter((item) => {
-      const matchCat = activeCategory === "All Items" || item.category === activeCategory;
-      const matchSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [allItems, activeCategory, searchQuery]);
+  const items = allItems;
 
   const apiStats = data?.stats?.byCategory;
   const categoryCounts = useMemo(
@@ -195,6 +215,17 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
   const handleAddClick = () => {
     onAddItem();
   };
+
+  const paginationMeta = (data as any)?.paginationResult ?? (data as any)?.pagination ?? (data as any)?.meta ?? {};
+  const totalPages =
+    paginationMeta?.totalPages ??
+    paginationMeta?.pages ??
+    Math.max(1, Math.ceil((paginationMeta?.totalDocs ?? paginationMeta?.total ?? items.length ?? 0) / PAGE_SIZE)) ??
+    1;
+
+  const canGoPrev = page > 1;
+  const canGoNext = page < totalPages;
+  const pageNumbers = buildPageWindow(page, totalPages, 5);
 
   return (
     <div className="flex h-full bg-gray-50 overflow-hidden relative">
@@ -271,8 +302,8 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
                       selectedItem?.id === item.id
                         ? "border-blue-400 ring-2 ring-blue-100"
                         : item.available
-                        ? "border-gray-100 hover:border-gray-200 hover:shadow-sm"
-                        : "border-gray-200 opacity-70"
+                          ? "border-gray-100 hover:border-gray-200 hover:shadow-sm"
+                          : "border-gray-200 opacity-70"
                     }`}
                   >
                     <FoodImage category={item.category} image={item.image} />
@@ -331,6 +362,45 @@ export default function MenuManagement({ onAddItem, onEditItem, branchId, refres
               </div>
             )}
           </div>
+
+          {!isLoading && !isError && items.length > 0 && totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between gap-3 flex-wrap border-t border-gray-100 pt-4">
+              <p className="text-xs sm:text-sm text-gray-500">
+                {t("showing")} <strong>{items.length}</strong> {t("of")}{" "}
+                <strong>{(paginationMeta?.totalDocs ?? paginationMeta?.total ?? items.length) as number}</strong>
+              </p>
+
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={!canGoPrev || isLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="w-7 h-7 rounded-lg text-xs text-gray-600 border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  ‹
+                </button>
+
+                {pageNumbers.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-7 h-7 rounded-lg text-xs font-semibold ${
+                      page === p ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                <button
+                  disabled={!canGoNext || isLoading}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="w-7 h-7 rounded-lg text-xs text-gray-600 border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -475,7 +545,9 @@ function QuickStats({
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-semibold">{item.name}</div>
-                  <div className="text-[10px] text-red-400 mt-0.5">${item.price} · {t(item.category.toLowerCase())}</div>
+                  <div className="text-[10px] text-red-400 mt-0.5">
+                    ${item.price} · {t(item.category.toLowerCase())}
+                  </div>
                   {item.description && (
                     <div className="text-[10px] text-gray-500 mt-0.5 truncate">{item.description}</div>
                   )}

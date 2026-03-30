@@ -1,5 +1,5 @@
 // src/components/Orders/OrdersManagement.tsx
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useOrders, cancelOrderFn, updateOrderStatusFn } from "../hook/useOrders";
@@ -16,8 +16,8 @@ import type { CreateDispatchDTO } from "../../DeliveryandDispatch/services/dispa
 
 const typeBadge: Record<string, string> = {
   "dine-in": "bg-purple-100 text-purple-700",
-  "takeaway": "bg-green-100 text-green-700",
-  "delivery": "bg-blue-100 text-blue-700",
+  takeaway: "bg-green-100 text-green-700",
+  delivery: "bg-blue-100 text-blue-700",
 };
 const statusColor: Record<string, string> = {
   completed: "text-green-500",
@@ -337,21 +337,58 @@ export default function OrdersManagement() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("All Orders");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [assigningOrder, setAssigningOrder] = useState<Order | null>(null);
+
+  const PAGE_SIZE = 10;
+
+  // Reset page when filters/search change
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, search]);
 
   // ── Data ──
   const { data, isLoading, isError, refetch } = useOrders({
     orderType: activeFilter === "All Orders" ? undefined : activeFilter,
     keyword: search || undefined,
-    limit: 50,
+    limit: PAGE_SIZE,
+    page,
   });
 
   const { data: driversData } = useDrivers({ sort: "-createdAt", limit: 20 });
   const drivers: Driver[] = driversData?.data ?? [];
 
   const orders: Order[] = data?.data ?? [];
+
+  // ── Server-side pagination ──────────────────────────────────────────────────
+  // Support all common API response shapes:
+  //   { paginationResult: { totalPages, currentPage, totalDocs, limit } }
+  //   { pagination: { totalPages, pages, total } }
+  //   { meta: { totalPages, pages, total } }
+  const pagination =
+    (data as any)?.paginationResult ??
+    (data as any)?.pagination ??
+    (data as any)?.meta ??
+    {};
+
+  const totalDocs: number =
+    pagination?.totalDocs ??
+    pagination?.total ??
+    (data as any)?.results ??
+    0;
+
+  const totalPages: number =
+    pagination?.totalPages ??
+    pagination?.pages ??
+    (totalDocs > 0 ? Math.ceil(totalDocs / PAGE_SIZE) : 1);
+
+  const currentPage: number = pagination?.currentPage ?? pagination?.page ?? page;
+
+  const canGoPrev = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const filterLabel = (f: FilterTab) => {
     const key =
@@ -398,21 +435,24 @@ export default function OrdersManagement() {
   );
 
   // Mark as Ready → then open Assign Driver modal
-  const handleMarkReady = useCallback(async (order: Order) => {
-    const id = (order.id ?? order._id ?? "") as string;
-    setMarkingId(id);
-    try {
-      await updateOrderStatusFn(id, { status: "ready" });
-      invalidateQuery("orders");
-      setAssigningOrder(order);
-      setSelectedOrder(null);
-    } catch (err) {
-      console.error(err);
-      alert(t("orders.management.failedToUpdateStatus"));
-    } finally {
-      setMarkingId(null);
-    }
-  }, [t]);
+  const handleMarkReady = useCallback(
+    async (order: Order) => {
+      const id = (order.id ?? order._id ?? "") as string;
+      setMarkingId(id);
+      try {
+        await updateOrderStatusFn(id, { status: "ready" });
+        invalidateQuery("orders");
+        setAssigningOrder(order);
+        setSelectedOrder(null);
+      } catch (err) {
+        console.error(err);
+        alert(t("orders.management.failedToUpdateStatus"));
+      } finally {
+        setMarkingId(null);
+      }
+    },
+    [t]
+  );
 
   // ── Derived ──
   const orderId = (o: Order) => (o.id ?? o._id ?? "") as string;
@@ -514,89 +554,155 @@ export default function OrdersManagement() {
 
           {/* Orders grid */}
           {!isLoading && !isError && orders.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {orders.map((order) => {
-                const id = orderId(order);
-                const status = (order.status ?? "").toLowerCase();
-                const type = (order.orderType ?? "").toLowerCase();
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {orders.map((order) => {
+                  const id = orderId(order);
+                  const status = (order.status ?? "").toLowerCase();
+                  const type = (order.orderType ?? "").toLowerCase();
 
-                return (
-                  <div
-                    key={id}
-                    onClick={() => setSelectedOrder(order)}
-                    className={`rounded-xl border-2 p-4 cursor-pointer transition-all hover:shadow-md ${
-                      orderId(selectedOrder ?? ({} as Order)) === id
-                        ? "border-blue-500 bg-blue-50/30"
-                        : "border-slate-100 hover:border-slate-200"
-                    }`}
-                  >
-                    {/* Card header */}
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          {t("orders.management.orderNumber", {
-                            orderNumber: order.orderNumber ?? `ORD-${order.orderId ?? id.slice(-4)}`,
-                          })}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-xs text-slate-500">
-                            {type === "delivery"
-                              ? `📍 ${(order as any).deliveryAddress ?? (order as any).customerLocation?.address ?? t("orders.management.delivery")}`
-                              : `🍴 ${order.tableNumber ? t("orders.management.tableNumber", { tableNumber: order.tableNumber }) : "—"}`}
+                  return (
+                    <div
+                      key={id}
+                      onClick={() => setSelectedOrder(order)}
+                      className={`rounded-xl border-2 p-4 cursor-pointer transition-all hover:shadow-md ${
+                        orderId(selectedOrder ?? ({} as Order)) === id
+                          ? "border-blue-500 bg-blue-50/30"
+                          : "border-slate-100 hover:border-slate-200"
+                      }`}
+                    >
+                      {/* Card header */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">
+                            {t("orders.management.orderNumber", {
+                              orderNumber: order.orderNumber ?? `ORD-${order.orderId ?? id.slice(-4)}`,
+                            })}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-slate-500">
+                              {type === "delivery"
+                                ? `📍 ${(order as any).deliveryAddress ?? (order as any).customerLocation?.address ?? t("orders.management.delivery")}`
+                                : `🍴 ${order.tableNumber ? t("orders.management.tableNumber", { tableNumber: order.tableNumber }) : "—"}`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-slate-400">{timeAgo(order.createdAt, t)}</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeBadge[type] ?? "bg-slate-100 text-slate-600"}`}>
+                            {orderTypeLabel(order.orderType)}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-slate-400">{timeAgo(order.createdAt, t)}</span>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeBadge[type] ?? "bg-slate-100 text-slate-600"}`}>
-                          {orderTypeLabel(order.orderType)}
-                        </span>
+
+                      <div className="border-t border-slate-100 my-2" />
+
+                      {/* Items list */}
+                      <div className="space-y-0.5">
+                        {(order.items ?? []).slice(0, 3).map((item, i) => (
+                          <p key={i} className="text-sm text-slate-700">
+                            {item.quantity}x {(item as any).name ?? item.itemId}
+                          </p>
+                        ))}
+                        {(order.items?.length ?? 0) > 3 && (
+                          <p className="text-xs text-slate-400">
+                            +{(order.items?.length ?? 0) - 3} {t("orders.management.more")}
+                          </p>
+                        )}
+                        {order.notes && (
+                          <p className="text-xs text-red-500 flex items-center gap-1 mt-1">⚠ {order.notes}</p>
+                        )}
                       </div>
-                    </div>
 
-                    <div className="border-t border-slate-100 my-2" />
-
-                    {/* Items list */}
-                    <div className="space-y-0.5">
-                      {(order.items ?? []).slice(0, 3).map((item, i) => (
-                        <p key={i} className="text-sm text-slate-700">
-                          {item.quantity}x {(item as any).name ?? item.itemId}
-                        </p>
-                      ))}
-                      {(order.items?.length ?? 0) > 3 && (
-                        <p className="text-xs text-slate-400">
-                          +{(order.items?.length ?? 0) - 3} {t("orders.management.more")}
-                        </p>
-                      )}
-                      {order.notes && (
-                        <p className="text-xs text-red-500 flex items-center gap-1 mt-1">⚠ {order.notes}</p>
-                      )}
-                    </div>
-
-                    {/* Status / progress */}
-                    {statusColor[status] ? (
-                      <p className={`font-bold text-sm mt-2 capitalize ${statusColor[status]}`}>{order.status}</p>
-                    ) : (
-                      <div className="mt-3">
-                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                          <div className="h-full w-3/4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full" />
+                      {/* Status / progress */}
+                      {statusColor[status] ? (
+                        <p className={`font-bold text-sm mt-2 capitalize ${statusColor[status]}`}>{order.status}</p>
+                      ) : (
+                        <div className="mt-3">
+                          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full w-3/4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full" />
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {canCancel(order) && (
+                        <button
+                          onClick={(e) => handleCancel(id, e)}
+                          disabled={cancellingId === id}
+                          className="mt-3 text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50 transition-colors"
+                        >
+                          {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Pagination ─────────────────────────────────────────────────────── */}
+              <div className="mt-6 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-4">
+                {/* Info: showing X–Y of Z */}
+                <p className="text-xs sm:text-sm text-slate-400">
+                  {totalDocs > 0
+                    ? t("orders.management.pageInfo", {
+                        from: (currentPage - 1) * PAGE_SIZE + 1,
+                        to: Math.min(currentPage * PAGE_SIZE, totalDocs),
+                        total: totalDocs,
+                      })
+                    : t("orders.management.pageOnly", { page: currentPage })}
+                </p>
+
+                <div className="flex items-center gap-1.5">
+                  {/* Prev */}
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={!canGoPrev || isLoading}
+                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50"
+                  >
+                    {t("common.prev", "Prev")}
+                  </button>
+
+                  {/* Page numbers — show up to 5 around current */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                    .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) =>
+                      item === "…" ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 text-sm select-none">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          onClick={() => setPage(item as number)}
+                          disabled={isLoading}
+                          className={`w-9 h-9 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
+                            item === currentPage
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      )
                     )}
 
-                    {canCancel(order) && (
-                      <button
-                        onClick={(e) => handleCancel(id, e)}
-                        disabled={cancellingId === id}
-                        className="mt-3 text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50 transition-colors"
-                      >
-                        {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  {/* Next */}
+                  <button
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={!canGoNext || isLoading}
+                    className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                  >
+                    {t("common.next", "Next")}
+                  </button>
+                </div>
+              </div>
+              {/* ─────────────────────────────────────────────────────────────────── */}
+            </>
           )}
         </div>
       </main>

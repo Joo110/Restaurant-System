@@ -8,6 +8,7 @@ function fmtCurrency(n?: number) {
   if (n == null) return "—";
   return `$${Number(n).toLocaleString()}`;
 }
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function PayrollPage() {
@@ -18,18 +19,14 @@ export default function PayrollPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 10;
 
-  // fetch payrolls (API returns { stats, data, paginationResult, ... })
   const { data, isLoading } = usePayrolls({
     limit,
     page: currentPage,
     sort: "-month,year",
-    // you may request fields/populate if backend supports
+    ...(search ? { keyword: search } : {}),
   });
 
-  // stats from API
   const stats = data?.stats;
-
-  // list records from API
   const recordsRaw = data?.data ?? [];
 
   const records = useMemo(
@@ -50,28 +47,38 @@ export default function PayrollPage() {
 
   const totalPayrollCost = stats?.financial?.totalNet ?? records.reduce((s, r) => s + Number(r.net || 0), 0);
 
-  const filtered = records.filter((r) =>
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.role.toLowerCase().includes(search.toLowerCase())
-  );
+  // ── Server-side pagination ──────────────────────────────────────────────────
+  const pagination = data?.paginationResult ?? (data as any)?.pagination ?? (data as any)?.meta ?? {};
 
-  const totalDocs = data?.paginationResult?.totalDocs ?? 0;
-  const current = data?.paginationResult?.currentPage ?? currentPage;
-  const pageLimit = data?.paginationResult?.limit ?? limit;
-  const totalPages = data?.paginationResult?.totalPages ?? 1;
+  const totalDocs: number = pagination?.totalDocs ?? pagination?.total ?? (data as any)?.results ?? 0;
+  const totalPages: number = pagination?.totalPages ?? pagination?.pages ?? (totalDocs > 0 ? Math.ceil(totalDocs / limit) : 1);
 
-  const from = totalDocs ? (current - 1) * pageLimit + 1 : 0;
-  const to = totalDocs ? Math.min(current * pageLimit, totalDocs) : 0;
+  const safeCurrentPage = Math.min(currentPage, totalPages || 1);
+  const from = totalDocs ? (safeCurrentPage - 1) * limit + 1 : 0;
+  const to   = totalDocs ? Math.min(safeCurrentPage * limit, totalDocs) : 0;
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const handlePageChange = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    setCurrentPage(p);
+  };
+
+  const visiblePageNumbers = (() => {
+    const pages: number[] = [];
+    const start = Math.max(1, safeCurrentPage - 2);
+    const end   = Math.min(totalPages, safeCurrentPage + 2);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  })();
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-5 font-sans">
-      {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         {[
           { label: t("payroll.list.stats.totalPayrollCost"), icon: "💰", value: fmtCurrency(totalPayrollCost) },
           { label: t("payroll.list.stats.deductions"), icon: "📋", value: fmtCurrency(stats?.financial?.totalTax ?? 0) },
           { label: t("payroll.list.stats.bonusOvertime"), icon: "⭐", value: fmtCurrency(stats?.financial?.totalBonus ?? 0) },
-          { label: t("payroll.list.stats.payrollCount"), icon: "📄", value: stats?.total ?? records.length },
+          { label: t("payroll.list.stats.payrollCount"), icon: "📄", value: stats?.total ?? totalDocs },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <div className="flex items-center gap-1.5 mb-1">
@@ -83,22 +90,26 @@ export default function PayrollPage() {
         ))}
       </div>
 
-      {/* Search + Button */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
         <div className="relative flex-1 sm:max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
             </svg>
           </span>
           <input
             type="text"
             placeholder={t("payroll.list.searchPlaceholder")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+
         <button
           onClick={() => setShowProcess(true)}
           className="sm:ml-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors"
@@ -107,7 +118,6 @@ export default function PayrollPage() {
         </button>
       </div>
 
-      {/* Table - scrollable on small screens */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[600px]">
@@ -123,7 +133,7 @@ export default function PayrollPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {records.map((r) => (
                 <tr
                   key={r.id}
                   onClick={() => navigate(`/dashboard/payroll/${r.id}`)}
@@ -154,6 +164,7 @@ export default function PayrollPage() {
                   </td>
                 </tr>
               ))}
+
               {isLoading && (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-400">
@@ -161,7 +172,8 @@ export default function PayrollPage() {
                   </td>
                 </tr>
               )}
-              {!isLoading && filtered.length === 0 && (
+
+              {!isLoading && records.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-400">
                     {t("payroll.list.noPayrollRecordsFound")}
@@ -172,39 +184,46 @@ export default function PayrollPage() {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* ── Pagination ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-slate-50">
           <span className="text-xs text-slate-400">
             {totalDocs
               ? t("payroll.list.pagination.showingRange", { from, to, total: totalDocs })
               : t("payroll.list.pagination.showingRecords", { count: records.length })}
           </span>
+
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs"
+              onClick={() => handlePageChange(safeCurrentPage - 1)}
+              disabled={safeCurrentPage <= 1 || isLoading}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ‹
             </button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+
+            {visiblePageNumbers.map((p) => (
               <button
                 key={p}
-                onClick={() => setCurrentPage(p)}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium transition-all ${
-                  currentPage === p ? "bg-blue-500 text-white" : "hover:bg-slate-100 text-slate-600"
+                onClick={() => handlePageChange(p)}
+                disabled={isLoading}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium transition-all disabled:opacity-50 ${
+                  safeCurrentPage === p ? "bg-blue-500 text-white" : "hover:bg-slate-100 text-slate-600"
                 }`}
               >
                 {p}
               </button>
             ))}
+
             <button
-              onClick={() => setCurrentPage((p) => p + 1)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs"
+              onClick={() => handlePageChange(safeCurrentPage + 1)}
+              disabled={safeCurrentPage >= totalPages || isLoading}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
             >
               ›
             </button>
           </div>
         </div>
+        {/* ─────────────────────────────────────────────────────────────────── */}
       </div>
 
       {showProcess && <ProcessPayrollModal onClose={() => setShowProcess(false)} totalAmount={totalPayrollCost} />}

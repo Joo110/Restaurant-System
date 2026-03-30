@@ -11,6 +11,124 @@
 
   "attendance": "Attendance",
 
+  "adminUsers": {
+    "title": "User Management",
+    "subtitle": "Manage and organize user accounts and permissions",
+    "totalUsers": "Total Users",
+    "loading": "Loading data...",
+    "noData": "No data",
+    "noDataSub": "No users found in the system",
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "roles": {
+      "admin": "Admin",
+      "user": "User"
+    },
+    "actions": {
+      "toggleRole": "Toggle Role",
+      "deactivate": "Deactivate",
+      "activate": "Activate"
+    }
+  },
+  "forgotPassword": {
+    "title": "Forgot Password",
+    "subtitle": "Enter your email to reset your password",
+    "emailLabel": "Email",
+    "placeholder": "chef@restaurant.com",
+    "sendCode": "Send Code",
+    "resendCode": "Resend",
+    "backToLogin": "Back to Login",
+    "successMsg": "Reset code sent to email",
+    "resendMsg": "Code resent successfully",
+    "sendFailed": "Failed to send code",
+    "resendFailed": "Failed to resend code"
+  },
+  "login": {
+    "title": "Login",
+    "subtitle": "Welcome back. Please enter your email and password.",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign Up",
+    "forgotPassword": "Forgot password?",
+    "loginBtn": "Login",
+    "loggingIn": "Logging in...",
+    "loginFailed": "Login failed"
+  },
+  "signUp": {
+    "title": "Create New Account",
+    "subtitle": "Join the restaurant management system now",
+    "fullName": "Full Name",
+    "namePlaceholder": "Enter your full name",
+    "email": "Email",
+    "phone": "Phone",
+    "phonePlaceholder": "01xxxxxxxxx",
+    "position": "Job Title",
+    "positionPlaceholder": "Manager, Chef, Receptionist...",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "passwordPlaceholder": "••••••••",
+    "signUpBtn": "Sign Up Now",
+    "signingUp": "Signing up...",
+    "loginLink": "Already have an account?",
+    "loginLinkBtn": "Login",
+    "successTitle": "Registration Successful!",
+    "successMsg": "Registration successful — check your email or log in",
+    "loginAfterSuccess": "Login",
+    "signUpFailed": "An error occurred during registration"
+  },
+  "updatePassword": {
+    "title": "Update Password",
+    "subtitle": "Secure your account with a strong password.",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "currentPlaceholder": "Enter current password",
+    "newPlaceholder": "Enter new password",
+    "confirmPlaceholder": "Confirm new password",
+    "cancel": "Cancel",
+    "updating": "Updating...",
+    "updateBtn": "Update Password",
+    "strength": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "strong": "Strong"
+    },
+    "errors": {
+      "currentRequired": "Current password is required",
+      "newRequired": "New password is required",
+      "newTooShort": "At least 8 characters required",
+      "confirmRequired": "Please confirm your new password",
+      "confirmMismatch": "Passwords do not match",
+      "failed": "Failed to update password."
+    }
+  },
+  "userDashboard": {
+    "title": "Dashboard",
+    "subtitle": "Welcome to the Restaurant Management System",
+    "loading": "Loading data...",
+    "welcomeMsg": "Welcome back to the dashboard",
+    "nameCard": "Name",
+    "emailCard": "Email",
+    "phoneCard": "Phone",
+    "quickActions": "Quick Actions",
+    "profile": "Profile",
+    "settings": "Settings",
+    "orders": "Orders",
+    "menuManagement": "Menu Management",
+    "menuManagementSub": "Full control over menu items and prices",
+    "reportsStats": "Reports & Statistics",
+    "reportsStatsSub": "Track performance and sales accurately"
+  },
   "annualLeaveBalance": "Annual Leave Balance",
   "sickLeaveBalance": "Sick Leave Balance",
   "attendanceRate": "Attendance Rate",
@@ -1549,6 +1667,8 @@
       "markAsReady": "Mark as Ready",
       "updating": "Updating...",
       "print": "Print",
+      "pageOnly": "Page Only",
+       "printReceipt": "Print Receipt",
       "orderItems": "Order Items",
       "subtotal": "Subtotal",
       "tax": "Tax",
