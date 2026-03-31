@@ -1,59 +1,50 @@
+// src/components/layout/Sidebar.tsx
 import React, { useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import Cookies from "js-cookie";
 import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard, UtensilsCrossed, ClipboardList, Package, Users,
-  Table2, BarChart3, ChevronLeft, ChevronRight, ChevronDown,
+  Table2, ChevronLeft, ChevronRight, ChevronDown,
   Truck, CalendarCheck, DollarSign, MapPin, FileText,
   TrendingUp, Bell,
 } from "lucide-react";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type SubItem = { path: string; labelKey: string; icon: React.ElementType };
-type NavItem = { path: string; labelKey: string; icon: React.ElementType; children?: SubItem[] };
-
-const getUserRole = (): string | null => {
-  if (typeof window === "undefined") return null;
-
-  const tryParseRole = (value: string | undefined | null): string | null => {
-    if (!value) return null;
-    try {
-      const parsed = JSON.parse(value);
-      if (typeof parsed === "string") return parsed;
-      if (parsed && typeof parsed === "object" && "role" in parsed) {
-        return typeof parsed.role === "string" ? parsed.role : null;
-      }
-    } catch {
-      //
-    }
-    return value;
-  };
-
-  const cookieKeys = ["user", "authUser", "profile", "currentUser", "role"];
-  for (const key of cookieKeys) {
-    const cookieValue = tryParseRole(Cookies.get(key));
-    if (cookieValue) return cookieValue;
-  }
-
-  const storageKeys = ["user", "authUser", "profile", "currentUser", "role"];
-  for (const key of storageKeys) {
-    const storageValue = tryParseRole(localStorage.getItem(key));
-    if (storageValue) return storageValue;
-  }
-
-  return null;
+type NavItem = {
+  path: string;
+  labelKey: string;
+  icon: React.ElementType;
+  children?: SubItem[];
 };
 
-const navItems: NavItem[] = [
-  { path: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
-  { path: "/dashboard/menu", labelKey: "menu", icon: UtensilsCrossed },
-  { path: "/dashboard/orders", labelKey: "orders", icon: ClipboardList },
+// ─── Auth helper ─────────────────────────────────────────────────────────────
+// Same exact logic as Topbar — reads "authUser" cookie only
+
+function getAuthUser(): { role?: string; branchId?: string; name?: string } | null {
+  try {
+    const raw = Cookies.get("authUser");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// ─── Nav items ────────────────────────────────────────────────────────────────
+
+const ALL_NAV_ITEMS: NavItem[] = [
+  { path: "/dashboard",                  labelKey: "dashboard", icon: LayoutDashboard },
+  { path: "/dashboard/menu",             labelKey: "menu",      icon: UtensilsCrossed },
+  { path: "/dashboard/orders",           labelKey: "orders",    icon: ClipboardList },
   {
     path: "/dashboard/inventory",
     labelKey: "inventory",
     icon: Package,
     children: [
-      { path: "/dashboard/inventory", labelKey: "stock", icon: Package },
+      { path: "/dashboard/inventory", labelKey: "stock",     icon: Package },
       { path: "/dashboard/suppliers", labelKey: "suppliers", icon: Truck },
     ],
   },
@@ -62,26 +53,42 @@ const navItems: NavItem[] = [
     labelKey: "staff",
     icon: Users,
     children: [
-      { path: "/dashboard/staff", labelKey: "employees", icon: Users },
+      { path: "/dashboard/staff",      labelKey: "employees",  icon: Users },
       { path: "/dashboard/attendance", labelKey: "attendance", icon: CalendarCheck },
-      { path: "/dashboard/payroll", labelKey: "payroll", icon: DollarSign },
+      { path: "/dashboard/payroll",    labelKey: "payroll",    icon: DollarSign },
     ],
   },
-  { path: "/dashboard/branches", labelKey: "branches", icon: MapPin },
-  { path: "/dashboard/tables", labelKey: "tables", icon: Table2 },
-  { path: "/dashboard/finance", labelKey: "finance", icon: TrendingUp },
-  { path: "/dashboard/analytics", labelKey: "analytics", icon: BarChart3 },
+  { path: "/dashboard/branches",           labelKey: "branches",  icon: MapPin },
+  { path: "/dashboard/tables",             labelKey: "tables",    icon: Table2 },
+  { path: "/dashboard/finance",            labelKey: "finance",   icon: TrendingUp },
+  //{ path: "/dashboard/analytics",          labelKey: "analytics", icon: BarChart3 },
   {
     path: "/dashboard/reports",
     labelKey: "reports",
     icon: FileText,
     children: [
-      { path: "/dashboard/reports", labelKey: "reports", icon: FileText },
+      { path: "/dashboard/reports",       labelKey: "reports",       icon: FileText },
       { path: "/dashboard/notifications", labelKey: "notifications", icon: Bell },
     ],
   },
   { path: "/dashboard/Executivedashboard", labelKey: "executive", icon: LayoutDashboard },
 ];
+
+// These paths are hidden when role === "manager"
+const MANAGER_HIDDEN_PATHS: string[] = [
+  "/dashboard/branches",
+  "/dashboard/Executivedashboard",
+];
+
+function buildNavItems(role: string | undefined): NavItem[] {
+  if (role === "manager") {
+    return ALL_NAV_ITEMS.filter((item) => !MANAGER_HIDDEN_PATHS.includes(item.path));
+  }
+  // general-manager + any other role → full list
+  return ALL_NAV_ITEMS;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   collapsed: boolean;
@@ -92,21 +99,14 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick }) => {
   const { t } = useTranslation();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
-  const userRole = useMemo(() => getUserRole(), []);
 
-  const visibleNavItems = useMemo(() => {
-    if (userRole === "manager") {
-      return navItems.filter(
-        (item) =>
-          item.path !== "/dashboard/Executivedashboard" &&
-          item.path !== "/dashboard/branches"
-      );
-    }
-    return navItems;
-  }, [userRole]);
+  // Single source — same authUser cookie Topbar uses
+  const userRole = useMemo(() => getAuthUser()?.role, []);
+
+  // Compute filtered nav once when role is known
+  const visibleItems = useMemo(() => buildNavItems(userRole), [userRole]);
 
   const isOpen = (path: string) => openMenus[path] ?? false;
-
   const toggle = (path: string) => {
     if (collapsed) return;
     setOpenMenus((prev) => ({ ...prev, [path]: !prev[path] }));
@@ -125,7 +125,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick 
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <p className="font-bold text-gray-800 text-sm leading-tight whitespace-nowrap">{t("appName")}</p>
+            <p className="font-bold text-gray-800 text-sm leading-tight whitespace-nowrap">
+              {t("appName")}
+            </p>
             <p className="text-[10px] text-gray-400 whitespace-nowrap">{t("restaurant")}</p>
           </div>
         )}
@@ -133,10 +135,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick 
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
-        {visibleNavItems.map(({ path, labelKey, icon: Icon, children }) => {
+        {visibleItems.map(({ path, labelKey, icon: Icon, children }) => {
           if (children) {
             const open = isOpen(path);
-
             return (
               <div key={path}>
                 <button
@@ -144,7 +145,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick 
                   title={collapsed ? t(`nav.${labelKey}`) : undefined}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-left group text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                 >
-                  <Icon size={18} className="flex-shrink-0 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                  <Icon
+                    size={18}
+                    className="flex-shrink-0 text-gray-400 group-hover:text-gray-600 transition-colors"
+                  />
                   {!collapsed && (
                     <>
                       <span className="text-sm font-medium whitespace-nowrap flex-1">
@@ -176,7 +180,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed, onLinkClick 
                       >
                         {({ isActive }) => (
                           <>
-                            <SI size={15} className={`flex-shrink-0 ${isActive ? "text-white" : "text-gray-400"}`} />
+                            <SI
+                              size={15}
+                              className={`flex-shrink-0 ${isActive ? "text-white" : "text-gray-400"}`}
+                            />
                             <span className="font-medium whitespace-nowrap">
                               {t(`nav.${slk}`)}
                             </span>

@@ -29,7 +29,8 @@ function timeAgo(dateStr?: string, t?: (key: string, options?: any) => string) {
   if (!dateStr) return "";
   const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
   if (diff < 1) return t ? t("common.justNow") : "just now";
-  if (diff < 60) return t ? t("common.minutesAgo", { count: Math.floor(diff) }) : `${Math.floor(diff)}m ago`;
+  if (diff < 60)
+    return t ? t("common.minutesAgo", { count: Math.floor(diff) }) : `${Math.floor(diff)}m ago`;
   return t ? t("common.hoursAgo", { count: Math.floor(diff / 60) }) : `${Math.floor(diff / 60)}h ago`;
 }
 
@@ -58,13 +59,18 @@ function validateAssign(
 ): AssignDriverErrors {
   const e: AssignDriverErrors = {};
   if (!driverId) e.driverId = t("orders.management.assignDriver.validation.driverRequired");
-  if (!deliveryFee || isNaN(Number(deliveryFee))) e.deliveryFee = t("orders.management.assignDriver.validation.validDeliveryFee");
-  else if (Number(deliveryFee) < 0) e.deliveryFee = t("orders.management.assignDriver.validation.nonNegativeFee");
-  if (commission && isNaN(Number(commission))) e.commission = t("orders.management.assignDriver.validation.validCommission");
+  if (!deliveryFee || isNaN(Number(deliveryFee)))
+    e.deliveryFee = t("orders.management.assignDriver.validation.validDeliveryFee");
+  else if (Number(deliveryFee) < 0)
+    e.deliveryFee = t("orders.management.assignDriver.validation.nonNegativeFee");
+  if (commission && isNaN(Number(commission)))
+    e.commission = t("orders.management.assignDriver.validation.validCommission");
   if (!address.trim()) e.address = t("orders.management.assignDriver.validation.addressRequired");
-  else if (address.trim().length < 5) e.address = t("orders.management.assignDriver.validation.addressTooShort");
+  else if (address.trim().length < 5)
+    e.address = t("orders.management.assignDriver.validation.addressTooShort");
   if (!phone.trim()) e.phone = t("orders.management.assignDriver.validation.phoneRequired");
-  else if (!/^[0-9+\-\s()]{7,15}$/.test(phone.trim())) e.phone = t("orders.management.assignDriver.validation.validPhone");
+  else if (!/^[0-9+\-\s()]{7,15}$/.test(phone.trim()))
+    e.phone = t("orders.management.assignDriver.validation.validPhone");
   return e;
 }
 
@@ -101,8 +107,10 @@ function AssignDriverModal({
       setErrors(errs);
       return;
     }
+
     setLoading(true);
     setApiError(null);
+
     try {
       await createDispatchFn({
         orderId,
@@ -112,6 +120,7 @@ function AssignDriverModal({
         cashCollected: (order as any).total ?? 0,
         customerLocation: { address: address.trim(), coordinates: [31.2357, 30.0444] },
       } as CreateDispatchDTO);
+
       invalidateQuery("dispatches");
       invalidateQuery("orders");
       onClose();
@@ -138,7 +147,9 @@ function AssignDriverModal({
                 🛵
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">{t("orders.management.assignDriver.title")}</h2>
+                <h2 className="text-lg font-bold text-white">
+                  {t("orders.management.assignDriver.title")}
+                </h2>
                 <p className="text-blue-100 text-sm">
                   {t("orders.management.assignDriver.orderNumber", { number: orderNumber })}
                 </p>
@@ -344,12 +355,10 @@ export default function OrdersManagement() {
 
   const PAGE_SIZE = 10;
 
-  // Reset page when filters/search change
   useEffect(() => {
     setPage(1);
   }, [activeFilter, search]);
 
-  // ── Data ──
   const { data, isLoading, isError, refetch } = useOrders({
     orderType: activeFilter === "All Orders" ? undefined : activeFilter,
     keyword: search || undefined,
@@ -362,11 +371,6 @@ export default function OrdersManagement() {
 
   const orders: Order[] = data?.data ?? [];
 
-  // ── Server-side pagination ──────────────────────────────────────────────────
-  // Support all common API response shapes:
-  //   { paginationResult: { totalPages, currentPage, totalDocs, limit } }
-  //   { pagination: { totalPages, pages, total } }
-  //   { meta: { totalPages, pages, total } }
   const pagination =
     (data as any)?.paginationResult ??
     (data as any)?.pagination ??
@@ -388,14 +392,16 @@ export default function OrdersManagement() {
 
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
-  // ─────────────────────────────────────────────────────────────────────────────
 
   const filterLabel = (f: FilterTab) => {
     const key =
-      f === "All Orders" ? "allOrders" :
-      f === "dine-in" ? "dineIn" :
-      f === "takeaway" ? "takeaway" :
-      "delivery";
+      f === "All Orders"
+        ? "allOrders"
+        : f === "dine-in"
+          ? "dineIn"
+          : f === "takeaway"
+            ? "takeaway"
+            : "delivery";
     return t(`orders.management.filters.${key}`);
   };
 
@@ -408,13 +414,14 @@ export default function OrdersManagement() {
 
   const orderTypeLabel = (type?: string) => {
     const key =
-      type === "dine-in" ? "dineIn" :
-      type === "takeaway" ? "takeAway" :
-      "delivery";
+      type === "dine-in" ? "dineIn" : type === "takeaway" ? "takeAway" : "delivery";
     return t(`orders.management.types.${key}`);
   };
 
-  // ── Actions ──
+  const isDeliveryOrder = (order: Order) => {
+    return String(order.orderType ?? "").toLowerCase() === "delivery";
+  };
+
   const handleCancel = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -434,7 +441,9 @@ export default function OrdersManagement() {
     [selectedOrder, t]
   );
 
-  // Mark as Ready → then open Assign Driver modal
+  // Mark as Ready
+  // - delivery: open assign driver modal
+  // - dine-in / takeaway: just update status, no modal
   const handleMarkReady = useCallback(
     async (order: Order) => {
       const id = (order.id ?? order._id ?? "") as string;
@@ -442,7 +451,13 @@ export default function OrdersManagement() {
       try {
         await updateOrderStatusFn(id, { status: "ready" });
         invalidateQuery("orders");
-        setAssigningOrder(order);
+
+        if (isDeliveryOrder(order)) {
+          setAssigningOrder(order);
+        } else {
+          setAssigningOrder(null);
+        }
+
         setSelectedOrder(null);
       } catch (err) {
         console.error(err);
@@ -454,26 +469,23 @@ export default function OrdersManagement() {
     [t]
   );
 
-  // ── Derived ──
   const orderId = (o: Order) => (o.id ?? o._id ?? "") as string;
   const canCancel = (o: Order) => !["cancelled", "completed"].includes((o.status ?? "").toLowerCase());
   const canMarkReady = (o: Order) => !["ready", "completed", "cancelled"].includes((o.status ?? "").toLowerCase());
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
-
   return (
     <div className="flex min-h-screen bg-slate-100 font-sans relative">
-      {/* Assign Driver Modal */}
       {assigningOrder && (
-        <AssignDriverModal order={assigningOrder} drivers={drivers} onClose={() => setAssigningOrder(null)} />
+        <AssignDriverModal
+          order={assigningOrder}
+          drivers={drivers}
+          onClose={() => setAssigningOrder(null)}
+        />
       )}
 
-      {/* ══ MAIN ══ */}
       <main className="flex-1 p-4 sm:p-6 min-w-0">
         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100">
-          {/* Filters bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-5 flex-wrap">
-            {/* Search */}
             <div className="relative w-full sm:flex-1 sm:max-w-xs">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -490,7 +502,6 @@ export default function OrdersManagement() {
               />
             </div>
 
-            {/* Filter pills */}
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               {FILTERS.map((f) => (
                 <button
@@ -510,7 +521,6 @@ export default function OrdersManagement() {
               ))}
             </div>
 
-            {/* Create button */}
             <button
               onClick={() => navigate("/dashboard/orders/create")}
               className="w-full sm:w-auto sm:ml-auto px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-colors"
@@ -519,7 +529,6 @@ export default function OrdersManagement() {
             </button>
           </div>
 
-          {/* Loading */}
           {isLoading && (
             <div className="flex justify-center items-center py-16 text-slate-400 text-sm gap-2">
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -530,7 +539,6 @@ export default function OrdersManagement() {
             </div>
           )}
 
-          {/* Error */}
           {isError && (
             <div className="text-center py-16">
               <p className="text-red-500 text-sm mb-3">{t("orders.management.failedToLoadOrders")}</p>
@@ -543,7 +551,6 @@ export default function OrdersManagement() {
             </div>
           )}
 
-          {/* Empty */}
           {!isLoading && !isError && orders.length === 0 && (
             <div className="text-center py-16 text-slate-400 text-sm">
               {activeFilter === "delivery"
@@ -552,7 +559,6 @@ export default function OrdersManagement() {
             </div>
           )}
 
-          {/* Orders grid */}
           {!isLoading && !isError && orders.length > 0 && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -571,7 +577,6 @@ export default function OrdersManagement() {
                           : "border-slate-100 hover:border-slate-200"
                       }`}
                     >
-                      {/* Card header */}
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <p className="font-bold text-slate-800 text-sm">
@@ -582,14 +587,26 @@ export default function OrdersManagement() {
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-xs text-slate-500">
                               {type === "delivery"
-                                ? `📍 ${(order as any).deliveryAddress ?? (order as any).customerLocation?.address ?? t("orders.management.delivery")}`
-                                : `🍴 ${order.tableNumber ? t("orders.management.tableNumber", { tableNumber: order.tableNumber }) : "—"}`}
+                                ? `📍 ${
+                                    (order as any).deliveryAddress ??
+                                    (order as any).customerLocation?.address ??
+                                    t("orders.management.delivery")
+                                  }`
+                                : `🍴 ${
+                                    order.tableNumber
+                                      ? t("orders.management.tableNumber", { tableNumber: order.tableNumber })
+                                      : "—"
+                                  }`}
                             </span>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs text-slate-400">{timeAgo(order.createdAt, t)}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeBadge[type] ?? "bg-slate-100 text-slate-600"}`}>
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              typeBadge[type] ?? "bg-slate-100 text-slate-600"
+                            }`}
+                          >
                             {orderTypeLabel(order.orderType)}
                           </span>
                         </div>
@@ -597,7 +614,6 @@ export default function OrdersManagement() {
 
                       <div className="border-t border-slate-100 my-2" />
 
-                      {/* Items list */}
                       <div className="space-y-0.5">
                         {(order.items ?? []).slice(0, 3).map((item, i) => (
                           <p key={i} className="text-sm text-slate-700">
@@ -610,13 +626,16 @@ export default function OrdersManagement() {
                           </p>
                         )}
                         {order.notes && (
-                          <p className="text-xs text-red-500 flex items-center gap-1 mt-1">⚠ {order.notes}</p>
+                          <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                            ⚠ {order.notes}
+                          </p>
                         )}
                       </div>
 
-                      {/* Status / progress */}
                       {statusColor[status] ? (
-                        <p className={`font-bold text-sm mt-2 capitalize ${statusColor[status]}`}>{order.status}</p>
+                        <p className={`font-bold text-sm mt-2 capitalize ${statusColor[status]}`}>
+                          {order.status}
+                        </p>
                       ) : (
                         <div className="mt-3">
                           <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
@@ -631,7 +650,9 @@ export default function OrdersManagement() {
                           disabled={cancellingId === id}
                           className="mt-3 text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50 transition-colors"
                         >
-                          {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
+                          {cancellingId === id
+                            ? t("orders.management.cancelling")
+                            : t("orders.management.cancelOrder")}
                         </button>
                       )}
                     </div>
@@ -639,9 +660,7 @@ export default function OrdersManagement() {
                 })}
               </div>
 
-              {/* ── Pagination ─────────────────────────────────────────────────────── */}
               <div className="mt-6 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-4">
-                {/* Info: showing X–Y of Z */}
                 <p className="text-xs sm:text-sm text-slate-400">
                   {totalDocs > 0
                     ? t("orders.management.pageInfo", {
@@ -653,7 +672,6 @@ export default function OrdersManagement() {
                 </p>
 
                 <div className="flex items-center gap-1.5">
-                  {/* Prev */}
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={!canGoPrev || isLoading}
@@ -662,7 +680,6 @@ export default function OrdersManagement() {
                     {t("common.prev", "Prev")}
                   </button>
 
-                  {/* Page numbers — show up to 5 around current */}
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
                     .reduce<(number | "…")[]>((acc, p, idx, arr) => {
@@ -691,7 +708,6 @@ export default function OrdersManagement() {
                       )
                     )}
 
-                  {/* Next */}
                   <button
                     onClick={() => setPage((p) => p + 1)}
                     disabled={!canGoNext || isLoading}
@@ -701,13 +717,11 @@ export default function OrdersManagement() {
                   </button>
                 </div>
               </div>
-              {/* ─────────────────────────────────────────────────────────────────── */}
             </>
           )}
         </div>
       </main>
 
-      {/* ══ DETAIL PANEL ══ */}
       {selectedOrder &&
         (() => {
           const id = orderId(selectedOrder);
@@ -752,16 +766,20 @@ export default function OrdersManagement() {
                       </p>
                     )}
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="text-slate-400 hover:text-white transition-colors text-xl leading-none">
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
+                  >
                     ×
                   </button>
                 </div>
 
-                {/* Items */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 bg-blue-500 rounded-sm" />
-                    <span className="text-sm font-semibold text-slate-300">{t("orders.management.orderItems")}</span>
+                    <span className="text-sm font-semibold text-slate-300">
+                      {t("orders.management.orderItems")}
+                    </span>
                   </div>
                   <div className="space-y-2">
                     {(selectedOrder.items ?? []).map((item, i) => (
@@ -769,13 +787,14 @@ export default function OrdersManagement() {
                         <span className="text-slate-300">
                           {item.quantity}x {(item as any).name ?? item.itemId}
                         </span>
-                        <span className="text-white font-medium">${((item as any).price ?? 0) * item.quantity}</span>
+                        <span className="text-white font-medium">
+                          ${((item as any).price ?? 0) * item.quantity}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Totals */}
                 <div className="border-t border-slate-700 pt-3 space-y-1.5">
                   <div className="flex justify-between text-sm text-slate-400">
                     <span>{t("orders.management.subtotal")}</span>
@@ -791,7 +810,6 @@ export default function OrdersManagement() {
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2">
                   <button className="flex-1 py-2.5 rounded-xl bg-slate-700 text-sm font-semibold hover:bg-slate-600 transition-colors">
                     🖨 {t("orders.management.print")}
@@ -813,7 +831,14 @@ export default function OrdersManagement() {
                     {markingId === id ? (
                       <>
                         <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
                         {t("orders.management.updating")}
@@ -830,7 +855,9 @@ export default function OrdersManagement() {
                     disabled={cancellingId === id}
                     className="w-full py-2.5 rounded-xl border border-red-500/40 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-colors disabled:opacity-50"
                   >
-                    {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
+                    {cancellingId === id
+                      ? t("orders.management.cancelling")
+                      : t("orders.management.cancelOrder")}
                   </button>
                 )}
               </aside>

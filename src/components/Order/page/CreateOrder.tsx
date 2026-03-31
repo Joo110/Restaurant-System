@@ -5,11 +5,13 @@ import { useTranslation } from "react-i18next";
 import { useItems } from "../../Menu/hook/useItems";
 import { createOrderFn } from "../hook/useOrders";
 import { invalidateQuery } from "../../../hook/queryClient";
+import OrderReceipt, { type ReceiptData } from "../page/OrderReceipt";
 import type { ApiBranch } from "../../layout/Topbar";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/* ── types ── */
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export type OrderItem = {
   id: string;
   name: string;
@@ -17,6 +19,9 @@ export type OrderItem = {
   quantity: number;
   note: string;
 };
+
+const DELIVERY_FEE = 5; // flat delivery fee — adjust or pull from branch settings
+const TAX_RATE = 0.2;   // 20%
 
 // ─── OrderPanel ───────────────────────────────────────────────────────────────
 
@@ -35,6 +40,7 @@ interface OrderPanelProps {
   onCancel: () => void;
   onConfirm: () => void;
   isSubmitting: boolean;
+  orderType: "dine-in" | "takeaway" | "delivery";
 }
 
 const OrderPanel: React.FC<OrderPanelProps> = ({
@@ -52,6 +58,7 @@ const OrderPanel: React.FC<OrderPanelProps> = ({
   onCancel,
   onConfirm,
   isSubmitting,
+  orderType,
 }) => {
   const { t } = useTranslation();
 
@@ -69,7 +76,9 @@ const OrderPanel: React.FC<OrderPanelProps> = ({
 
       <div className="flex flex-col gap-3 overflow-y-auto max-h-48 lg:max-h-[320px]">
         {orderItems.length === 0 && (
-          <p className="text-slate-500 text-sm text-center py-4">{t("orders.create.noItemsYet")}</p>
+          <p className="text-slate-500 text-sm text-center py-4">
+            {t("orders.create.noItemsYet")}
+          </p>
         )}
 
         {orderItems.map((item) => (
@@ -113,9 +122,15 @@ const OrderPanel: React.FC<OrderPanelProps> = ({
           <span>${subtotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm text-slate-400">
-          <span>{t("orders.create.tax", { rate: 20 })}</span>
+          <span>{t("orders.create.tax", { rate: Math.round(TAX_RATE * 100) })}</span>
           <span>${tax.toFixed(2)}</span>
         </div>
+        {orderType === "delivery" && (
+          <div className="flex justify-between text-sm text-slate-400">
+            <span>Delivery Fee</span>
+            <span>${DELIVERY_FEE.toFixed(2)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-base font-bold mt-2">
           <span>{t("orders.create.total")}</span>
           <span>${total.toFixed(2)}</span>
@@ -203,24 +218,47 @@ const PROMO_CODES: Record<string, number> = { SAVE20: 20, SAVE10: 10 };
 const isObjectId = (v?: string | null): v is string =>
   typeof v === "string" && /^[a-f\d]{24}$/i.test(v.trim());
 
+/** Generate a short readable order number from an ObjectId or timestamp */
+function makeOrderNumber(apiId?: string): string {
+  if (apiId && apiId.length >= 5) {
+    return apiId.slice(-5).toUpperCase();
+  }
+  // Fallback: last 5 digits of timestamp
+  return String(Date.now()).slice(-5);
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CreateOrder() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  // ── UI state ──
   const [activeCategory, setActiveCategory] = useState("All Items");
   const [search, setSearch] = useState("");
   const [showOrder, setShowOrder] = useState(false);
+
+  // ── Order state ──
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [promoCode, setPromoCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery">("dine-in");
   const [tableNumber, setTableNumber] = useState("");
 
+  // ── Delivery customer info ──
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+
+  // ── Receipt state ──
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [pendingNavigateTo, setPendingNavigateTo] = useState<string>("/dashboard/orders");
+
+  // ── Branch ──
   const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
   const activeBranch = outlet?.activeBranch ?? null;
 
+  // ── Menu items ──
   const { data: itemsData, isLoading: itemsLoading } = useItems({
     category: activeCategory === "All Items" ? undefined : activeCategory,
     keyword: search || undefined,
@@ -237,13 +275,22 @@ export default function CreateOrder() {
     category?: string;
   }[];
 
+  // ── Calculations ──
   const promoDiscount = PROMO_CODES[promoCode.toUpperCase()] ?? 0;
-
   const subtotal = orderItems.reduce((s, o) => s + o.price * o.quantity, 0);
-  const tax = subtotal * 0.2;
-  const total = subtotal + tax;
+  const tax = subtotal * TAX_RATE;
+  const deliveryFee = orderType === "delivery" ? DELIVERY_FEE : 0;
+  const total = subtotal + tax + deliveryFee;
   const finalTotal = Math.max(0, total - promoDiscount);
 
+  // ── branchId ──
+  const branchId = isObjectId(activeBranch?.id)
+    ? activeBranch!.id
+    : isObjectId(activeBranch?._id)
+    ? activeBranch!._id
+    : "";
+
+  // ── Item helpers ──
   const addItem = (item: typeof menuItems[0]) => {
     const id = item._id ?? item.id ?? "";
     setOrderItems((prev) => {
@@ -255,20 +302,15 @@ export default function CreateOrder() {
 
   const updateQty = (id: string, delta: number) =>
     setOrderItems((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, quantity: o.quantity + delta } : o)).filter((o) => o.quantity > 0)
+      prev
+        .map((o) => (o.id === id ? { ...o, quantity: o.quantity + delta } : o))
+        .filter((o) => o.quantity > 0)
     );
 
   const updateNote = (id: string, note: string) =>
     setOrderItems((prev) => prev.map((o) => (o.id === id ? { ...o, note } : o)));
 
-  // branchId always string now, so CreateOrderDTO won't complain
-  const branchId =
-    isObjectId(activeBranch?.id)
-      ? activeBranch!.id
-      : isObjectId(activeBranch?._id)
-        ? activeBranch!._id
-        : "";
-
+  // ── Confirm order ──
   const handleConfirm = async () => {
     if (orderItems.length === 0) return;
 
@@ -277,9 +319,14 @@ export default function CreateOrder() {
       return;
     }
 
+    if (orderType === "delivery" && !customerName.trim()) {
+      alert("Customer name is required for delivery orders.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await createOrderFn({
+      const response = await createOrderFn({
         orderType,
         tableNumber: orderType === "dine-in" ? String(tableNumber).trim() : undefined,
         items: orderItems.map((o) => ({
@@ -289,22 +336,61 @@ export default function CreateOrder() {
         })),
         paymentMethod: "cash",
         branchId,
-        notes: orderItems.filter((o) => o.note).map((o) => `${o.name}: ${o.note}`).join(" | ") || undefined,
-      });
+        notes:
+          orderItems
+            .filter((o) => o.note)
+            .map((o) => `${o.name}: ${o.note}`)
+            .join(" | ") || undefined,
+      } as any);
 
       invalidateQuery("orders");
+
+      // ── Determine where to navigate after receipt is closed ──
+      const nextRoute =
+        orderType === "delivery" ? "/dashboard/orders" : "/dashboard/dispatches";
 
       if (orderType === "delivery") {
         await new Promise((r) => setTimeout(r, 800));
         invalidateQuery("dispatches");
-        navigate("/dashboard/orders");
-      } else {
-        navigate("/dashboard/dispatches");
       }
+
+      // ── Build receipt data ──
+      const apiOrder = (response as any)?.data ?? (response as any);
+      const orderId: string = apiOrder?._id ?? apiOrder?.id ?? "";
+
+      const receipt: ReceiptData = {
+        orderNumber: makeOrderNumber(orderId),
+        createdAt: new Date(),
+        orderType,
+        tableNumber: orderType === "dine-in" ? String(tableNumber).trim() : undefined,
+        branchName: activeBranch?.name ?? undefined,
+        taxId: undefined, // pull from branch if available
+        items: orderItems,
+        subtotal,
+        taxRate: TAX_RATE,
+        tax,
+        promoDiscount,
+        deliveryFee,
+        total: finalTotal,
+        paymentMethod: "cash",
+        // Cash flow — adjust when card payments are supported
+        amountPaid: orderType === "delivery" ? undefined : undefined,
+        changeDue: orderType === "delivery" ? undefined : undefined,
+        // Delivery customer
+        customerName: orderType === "delivery" ? customerName.trim() : undefined,
+        customerPhone: orderType === "delivery" ? customerPhone.trim() : undefined,
+        customerAddress: orderType === "delivery" ? customerAddress.trim() : undefined,
+      };
+
+      setPendingNavigateTo(nextRoute);
+      setReceiptData(receipt);
+      setShowOrder(false);
     } catch (err: any) {
       const resp = err?.response?.data;
       if (resp && Array.isArray(resp.errors)) {
-        const messages = resp.errors.map((e: any) => `${e.path ?? "field"}: ${e.msg}`).join("\n");
+        const messages = resp.errors
+          .map((e: any) => `${e.path ?? "field"}: ${e.msg}`)
+          .join("\n");
         alert(`${t("orders.create.failedToPlaceOrder")}\n${messages}`);
       } else {
         console.error(err);
@@ -315,7 +401,23 @@ export default function CreateOrder() {
     }
   };
 
-  const orderTypeMeta: Record<typeof orderType, { key: "dineIn" | "takeaway" | "delivery"; emoji: string }> = {
+  // ── Close receipt and navigate ──
+  const handleReceiptClose = () => {
+    setReceiptData(null);
+    navigate(pendingNavigateTo);
+  };
+
+  // ── Print done → navigate ──
+  const handlePrintDone = () => {
+    setReceiptData(null);
+    navigate(pendingNavigateTo);
+  };
+
+  // ── Order type meta ──
+  const orderTypeMeta: Record<
+    typeof orderType,
+    { key: "dineIn" | "takeaway" | "delivery"; emoji: string }
+  > = {
     "dine-in": { key: "dineIn", emoji: "🍽" },
     takeaway: { key: "takeaway", emoji: "🥡" },
     delivery: { key: "delivery", emoji: "🛵" },
@@ -324,10 +426,15 @@ export default function CreateOrder() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <div className="max-w-6xl mx-auto p-3 sm:p-6">
+
+        {/* ── Header ── */}
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">{t("orders.create.createNewOrder")}</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">
+              {t("orders.create.createNewOrder")}
+            </h1>
 
+            {/* Order type tabs */}
             <div className="flex flex-wrap gap-2 mt-2 items-center">
               {(["dine-in", "takeaway", "delivery"] as const).map((type) => (
                 <button
@@ -341,10 +448,12 @@ export default function CreateOrder() {
                       : "bg-slate-200 text-slate-600 hover:bg-slate-300"
                   }`}
                 >
-                  {orderTypeMeta[type].emoji} {t(`orders.create.orderTypes.${orderTypeMeta[type].key}`)}
+                  {orderTypeMeta[type].emoji}{" "}
+                  {t(`orders.create.orderTypes.${orderTypeMeta[type].key}`)}
                 </button>
               ))}
 
+              {/* Table number (dine-in only) */}
               {orderType === "dine-in" && (
                 <input
                   type="text"
@@ -357,6 +466,7 @@ export default function CreateOrder() {
             </div>
           </div>
 
+          {/* Mobile order cart toggle */}
           <button
             onClick={() => setShowOrder(true)}
             className="lg:hidden relative flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold"
@@ -371,9 +481,61 @@ export default function CreateOrder() {
           </button>
         </div>
 
+        {/* ── Delivery Customer Info ── */}
+        {orderType === "delivery" && (
+          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 mb-4 sm:mb-6">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <span className="text-base">👤</span>
+              Customer Information
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  Customer Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Ahmed Ali"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="e.g. 050 123 4567"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-300"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  Delivery Address
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Apt 4B, Sunshine Building, Al Safa Street, Business Bay"
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-300"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Main Grid ── */}
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
+
+          {/* ── Menu ── */}
           <div className="flex-1 min-w-0 space-y-4">
             <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100">
+              {/* Search */}
               <div className="relative mb-4">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -390,6 +552,7 @@ export default function CreateOrder() {
                 />
               </div>
 
+              {/* Category tabs */}
               <div className="flex gap-2 mb-4 sm:mb-5 overflow-x-auto pb-0.5">
                 {CATEGORIES.map((cat) => (
                   <button
@@ -406,6 +569,7 @@ export default function CreateOrder() {
                 ))}
               </div>
 
+              {/* Loading */}
               {itemsLoading && (
                 <div className="flex justify-center items-center py-16 text-slate-400 text-sm gap-2">
                   <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -416,6 +580,7 @@ export default function CreateOrder() {
                 </div>
               )}
 
+              {/* Items Grid */}
               {!itemsLoading && (
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                   {menuItems.map((item) => {
@@ -450,26 +615,38 @@ export default function CreateOrder() {
                           ) : null}
                           <div
                             className="w-full h-full items-center justify-center text-3xl sm:text-4xl bg-slate-100"
-                            style={{ display: item.image && item.image.startsWith("http") ? "none" : "flex" }}
+                            style={{
+                              display:
+                                item.image && item.image.startsWith("http") ? "none" : "flex",
+                            }}
                           >
                             🍽
                           </div>
                         </div>
-                        <p className="font-semibold text-slate-800 text-xs sm:text-sm truncate">{item.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 hidden sm:block">{item.description}</p>
-                        <p className="text-blue-600 font-bold text-xs sm:text-sm mt-1">${item.price}</p>
+                        <p className="font-semibold text-slate-800 text-xs sm:text-sm truncate">
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 hidden sm:block">
+                          {item.description}
+                        </p>
+                        <p className="text-blue-600 font-bold text-xs sm:text-sm mt-1">
+                          ${item.price}
+                        </p>
                       </div>
                     );
                   })}
 
                   {!itemsLoading && menuItems.length === 0 && (
-                    <p className="col-span-4 text-center text-slate-400 text-sm py-8">{t("orders.create.noItemsFound")}</p>
+                    <p className="col-span-4 text-center text-slate-400 text-sm py-8">
+                      {t("orders.create.noItemsFound")}
+                    </p>
                   )}
                 </div>
               )}
             </div>
           </div>
 
+          {/* ── Desktop Order Panel ── */}
           <div className="hidden lg:block w-72 shrink-0 sticky top-6 self-start">
             <OrderPanel
               orderItems={orderItems}
@@ -486,14 +663,19 @@ export default function CreateOrder() {
               onCancel={() => navigate("/dashboard/orders")}
               onConfirm={handleConfirm}
               isSubmitting={isSubmitting}
+              orderType={orderType}
             />
           </div>
         </div>
       </div>
 
+      {/* ── Mobile Order Drawer ── */}
       {showOrder && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowOrder(false)} />
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowOrder(false)}
+          />
           <div className="absolute right-0 top-0 h-full w-full max-w-sm bg-slate-900 overflow-y-auto p-4 shadow-2xl">
             <OrderPanel
               orderItems={orderItems}
@@ -513,9 +695,19 @@ export default function CreateOrder() {
               }}
               onConfirm={handleConfirm}
               isSubmitting={isSubmitting}
+              orderType={orderType}
             />
           </div>
         </div>
+      )}
+
+      {/* ── Receipt Modal ── */}
+      {receiptData && (
+        <OrderReceipt
+          data={receiptData}
+          onClose={handleReceiptClose}
+          onPrintDone={handlePrintDone}
+        />
       )}
     </div>
   );
