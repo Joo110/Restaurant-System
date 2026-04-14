@@ -20,19 +20,19 @@ function getStatus(current: number, target: number): "critical" | "reorder" | "o
 
 function getBarColor(status: "critical" | "reorder" | "ok") {
   if (status === "critical") return "bg-red-500";
-  if (status === "reorder")  return "bg-yellow-400";
+  if (status === "reorder") return "bg-yellow-400";
   return "bg-green-500";
 }
 
 function getEmoji(name: string) {
   const n = (name ?? "").toLowerCase();
-  if (n.includes("tomato"))                                   return "🍅";
-  if (n.includes("chicken"))                                  return "🍗";
-  if (n.includes("flour") || n.includes("bread"))            return "🌾";
+  if (n.includes("tomato")) return "🍅";
+  if (n.includes("chicken")) return "🍗";
+  if (n.includes("flour") || n.includes("bread")) return "🌾";
   if (n.includes("milk") || n.includes("dairy") || n.includes("cheese")) return "🧀";
-  if (n.includes("beef") || n.includes("meat"))              return "🥩";
-  if (n.includes("fish") || n.includes("seafood"))           return "🐟";
-  if (n.includes("pepper") || n.includes("spice"))           return "🌶️";
+  if (n.includes("beef") || n.includes("meat")) return "🥩";
+  if (n.includes("fish") || n.includes("seafood")) return "🐟";
+  if (n.includes("pepper") || n.includes("spice")) return "🌶️";
   if (n.includes("juice") || n.includes("drink") || n.includes("water")) return "🥤";
   return "🫙";
 }
@@ -42,22 +42,22 @@ function unwrapList(raw: any) {
   if (!raw) return { items: [], totalPages: 1, totalDocs: 0, stats: null };
   const items: InventoryItem[] = Array.isArray(raw.data) ? raw.data : [];
   const totalPages = raw.paginationResult?.totalPages ?? 1;
-  const totalDocs  = raw.paginationResult?.totalDocs  ?? items.length;
-  const stats      = raw.stats ?? null;
+  const totalDocs = raw.paginationResult?.totalDocs ?? items.length;
+  const stats = raw.stats ?? null;
   return { items, totalPages, totalDocs, stats };
 }
 
 export default function InventoryPage() {
-  const { t }    = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [activeFilter,    setActiveFilter]    = useState("Total Items");
-  const [search,          setSearch]          = useState("");
+  const [activeFilter, setActiveFilter] = useState("Total Items");
+  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page,            setPage]            = useState(1);
-  const [showRestock,     setShowRestock]     = useState(false);
-  const [reorderItem,     setReorderItem]     = useState<InventoryItem | null>(null);
-  const [deletingId,      setDeletingId]      = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [showRestock, setShowRestock] = useState(false);
+  const [reorderItem, setReorderItem] = useState<InventoryItem | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleSearch = (val: string) => {
     setSearch(val);
@@ -99,20 +99,25 @@ export default function InventoryPage() {
     }
   };
 
-  const statCritical = stats?.critical   ?? filtered.filter((i) => getStatus(i.currentQuantity ?? 0, i.targetQuantity ?? 1) === "critical").length;
-  const statLow      = stats?.low        ?? filtered.filter((i) => getStatus(i.currentQuantity ?? 0, i.targetQuantity ?? 1) === "reorder").length;
+  const statCritical =
+    stats?.critical ??
+    filtered.filter((i) => getStatus(i.currentQuantity ?? 0, i.targetQuantity ?? 1) === "critical").length;
+
+  const statLow =
+    stats?.low ??
+    filtered.filter((i) => getStatus(i.currentQuantity ?? 0, i.targetQuantity ?? 1) === "reorder").length;
+
   const statExpiring = stats?.expiringSoon ?? 0;
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 sm:p-4 font-sans">
-
       {/* Stats bar */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
-            { label: t("totalItems"),   value: totalDocs,    color: "text-slate-800"  },
-            { label: t("critical"),     value: statCritical, color: "text-red-500"    },
-            { label: t("lowStock"),     value: statLow,      color: "text-yellow-500" },
+            { label: t("totalItems"), value: totalDocs, color: "text-slate-800" },
+            { label: t("critical"), value: statCritical, color: "text-red-500" },
+            { label: t("lowStock"), value: statLow, color: "text-yellow-500" },
             { label: t("expiringSoon"), value: statExpiring, color: "text-orange-500" },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
@@ -125,12 +130,12 @@ export default function InventoryPage() {
 
       {/* Top bar */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-
         {/* Search */}
         <div className="relative w-full sm:max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
             <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
             </svg>
           </span>
           <input
@@ -147,7 +152,10 @@ export default function InventoryPage() {
           {STATUS_FILTERS.map((f) => (
             <button
               key={f}
-              onClick={() => { setActiveFilter(f); setPage(1); }}
+              onClick={() => {
+                setActiveFilter(f);
+                setPage(1);
+              }}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                 activeFilter === f
                   ? "bg-blue-500 text-white"
@@ -183,7 +191,9 @@ export default function InventoryPage() {
       {isError && (
         <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 flex items-center justify-between">
           <span>{t("failedToLoadInventory")}</span>
-          <button onClick={refetch} className="underline font-medium">{t("retry")}</button>
+          <button onClick={refetch} className="underline font-medium">
+            {t("retry")}
+          </button>
         </div>
       )}
 
@@ -204,16 +214,16 @@ export default function InventoryPage() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {filtered.map((inv) => {
-              const id      = inv.id as string;
+              const id = inv.id as string;
               const current = inv.currentQuantity ?? 0;
-              const target  = inv.targetQuantity  ?? 1;
-              const status  = getStatus(current, target);
+              const target = inv.targetQuantity ?? 1;
+              const status = getStatus(current, target);
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const menuItem = (inv as any).item as { name?: string; category?: string } | undefined;
-              const itemName  = menuItem?.name     ?? "Unknown Item";
-              const category  = menuItem?.category ?? inv.unit ?? "—";
+              const itemName = menuItem?.name ?? "Unknown Item";
+              const category = menuItem?.category ?? inv.unit ?? "—";
               const isExpiringSoon = inv.expiryDate
-                ? (new Date(inv.expiryDate).getTime() - Date.now()) < 3 * 24 * 60 * 60 * 1000
+                ? new Date(inv.expiryDate).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000
                 : false;
 
               return (
@@ -248,15 +258,20 @@ export default function InventoryPage() {
                   <p className="text-xs text-slate-400 mb-2 truncate capitalize">{category}</p>
 
                   <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
-                    <span className={`text-base sm:text-lg font-bold ${
-                      status === "critical" ? "text-red-500" :
-                      status === "reorder"  ? "text-yellow-500" : "text-slate-800"
-                    }`}>
+                    <span
+                      className={`text-base sm:text-lg font-bold ${
+                        status === "critical"
+                          ? "text-red-500"
+                          : status === "reorder"
+                          ? "text-yellow-500"
+                          : "text-slate-800"
+                      }`}
+                    >
                       {current}
                       <span className="text-xs font-normal text-slate-400 ml-0.5">{inv.unit}</span>
                     </span>
-                    <span className="text-[10px] sm:text-xs text-slate-400">
-                      / {target}{inv.unit}
+                    <span className="text-[10px] sm:text-xs text-slate-400">/ {target}
+                      {inv.unit}
                     </span>
                   </div>
 
@@ -286,7 +301,10 @@ export default function InventoryPage() {
                     </button>
                   ) : (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setReorderItem(inv); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReorderItem(inv);
+                      }}
                       className="w-full py-1.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors"
                     >
                       {t("reorderNow")}
@@ -297,11 +315,7 @@ export default function InventoryPage() {
             })}
           </div>
 
-          {filtered.length === 0 && (
-            <div className="py-16 text-center text-slate-400 text-sm">
-              {t("noInventoryItems")}
-            </div>
-          )}
+          {filtered.length === 0 && <div className="py-16 text-center text-slate-400 text-sm">{t("noInventoryItems")}</div>}
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -333,14 +347,21 @@ export default function InventoryPage() {
       {showRestock && (
         <RestockModal
           onClose={() => setShowRestock(false)}
-          onSuccess={() => { setShowRestock(false); refetch(); }}
+          onSuccess={() => {
+            setShowRestock(false);
+            refetch();
+          }}
         />
       )}
+
       {reorderItem && (
         <ConfirmReorderModal
           item={reorderItem}
           onClose={() => setReorderItem(null)}
-          onSuccess={() => { setReorderItem(null); refetch(); }}
+          onSuccess={() => {
+            setReorderItem(null);
+            refetch();
+          }}
         />
       )}
     </div>

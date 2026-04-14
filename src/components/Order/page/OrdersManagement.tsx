@@ -39,6 +39,88 @@ function timeAgo(dateStr?: string, t?: (key: string, options?: any) => string) {
 type FilterTab = "All Orders" | "dine-in" | "takeaway" | "delivery";
 const FILTERS: FilterTab[] = ["All Orders", "dine-in", "takeaway", "delivery"];
 
+// ─── Cancel Confirmation Modal ─────────────────────────────────────────────────
+
+function CancelConfirmModal({
+  orderNumber,
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  orderNumber: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+        {/* Red header */}
+        <div className="bg-gradient-to-br from-red-500 to-rose-600 px-6 py-5 text-center">
+          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-3xl mx-auto mb-3">
+            🚫
+          </div>
+          <h2 className="text-lg font-bold text-white">
+            {t("orders.management.cancelOrder")}
+          </h2>
+          <p className="text-red-100 text-sm mt-1">
+            {t("orders.management.orderNumber", { orderNumber })}
+          </p>
+        </div>
+
+        <div className="px-6 py-5">
+          <p className="text-slate-600 text-sm text-center leading-relaxed">
+            {t("orders.management.confirmCancelOrder")}
+          </p>
+
+          {/* Visual warning strip */}
+          <div className="mt-4 bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-red-400 text-lg shrink-0">⚠️</span>
+            <p className="text-xs text-red-600 leading-relaxed">
+              {t("orders.management.cancelWarning", "هذا الإجراء لا يمكن التراجع عنه بعد التأكيد.")}
+            </p>
+          </div>
+        </div>
+
+        <div className="px-6 pb-5 flex gap-3">
+          {/* Keep order - prominent */}
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl border-2 border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-all disabled:opacity-50"
+          >
+            {t("common.cancel")}
+          </button>
+
+          {/* Confirm cancel - destructive */}
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm shadow-red-200"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                {t("orders.management.cancelling")}
+              </>
+            ) : (
+              <>
+                <span>🚫</span>
+                {t("orders.management.confirmCancel", "تأكيد الإلغاء")}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Assign Driver Validation ─────────────────────────────────────────────────
 
 interface AssignDriverErrors {
@@ -139,7 +221,6 @@ function AssignDriverModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-        {/* Gradient header */}
         <div className="bg-gradient-to-br from-blue-600 to-blue-500 px-6 py-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -180,13 +261,10 @@ function AssignDriverModal({
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-2.5">
               <span className="text-red-500 shrink-0">⚠</span>
               <p className="text-sm text-red-600 flex-1">{apiError}</p>
-              <button onClick={() => setApiError(null)} className="text-red-300 hover:text-red-500 shrink-0">
-                ✕
-              </button>
+              <button onClick={() => setApiError(null)} className="text-red-300 hover:text-red-500 shrink-0">✕</button>
             </div>
           )}
 
-          {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               {t("orders.management.assignDriver.deliveryAddress")} <span className="text-red-500">*</span>
@@ -195,18 +273,12 @@ function AssignDriverModal({
               type="text"
               placeholder={t("orders.management.assignDriver.deliveryAddressPlaceholder")}
               value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setErrors((p) => ({ ...p, address: undefined }));
-              }}
-              className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${
-                errors.address ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"
-              }`}
+              onChange={(e) => { setAddress(e.target.value); setErrors((p) => ({ ...p, address: undefined })); }}
+              className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${errors.address ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"}`}
             />
             {errors.address && <p className="text-xs text-red-500 mt-1">{errors.address}</p>}
           </div>
 
-          {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               {t("orders.management.assignDriver.customerPhone")} <span className="text-red-500">*</span>
@@ -215,23 +287,16 @@ function AssignDriverModal({
               type="tel"
               placeholder={t("orders.management.assignDriver.customerPhonePlaceholder")}
               value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setErrors((p) => ({ ...p, phone: undefined }));
-              }}
-              className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${
-                errors.phone ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"
-              }`}
+              onChange={(e) => { setPhone(e.target.value); setErrors((p) => ({ ...p, phone: undefined })); }}
+              className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${errors.phone ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"}`}
             />
             {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
           </div>
 
-          {/* Driver picker - combo box */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               {t("orders.management.assignDriver.selectDriver")} <span className="text-red-500">*</span>
             </label>
-
             {availableDrivers.length === 0 ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
                 <span>⚠️</span> {t("orders.management.assignDriver.noAvailableDrivers")}
@@ -239,29 +304,20 @@ function AssignDriverModal({
             ) : (
               <select
                 value={driverId}
-                onChange={(e) => {
-                  setDriverId(e.target.value);
-                  setErrors((p) => ({ ...p, driverId: undefined }));
-                }}
-                className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${
-                  errors.driverId ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"
-                }`}
+                onChange={(e) => { setDriverId(e.target.value); setErrors((p) => ({ ...p, driverId: undefined })); }}
+                className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${errors.driverId ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"}`}
               >
                 <option value="">{t("orders.management.assignDriver.selectDriverPlaceholder")}</option>
                 {availableDrivers.map((d) => (
                   <option key={d.id} value={d.id ?? ""}>
-                    {d.name}
-                    {d.vehiclePlate ? ` · ${d.vehiclePlate}` : ""}
-                    {d.status ? ` · ${d.status}` : ""}
+                    {d.name}{d.vehiclePlate ? ` · ${d.vehiclePlate}` : ""}{d.status ? ` · ${d.status}` : ""}
                   </option>
                 ))}
               </select>
             )}
-
             {errors.driverId && <p className="text-xs text-red-500 mt-1">{errors.driverId}</p>}
           </div>
 
-          {/* Fee + Commission */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -270,17 +326,9 @@ function AssignDriverModal({
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={deliveryFee}
-                  onChange={(e) => {
-                    setDeliveryFee(e.target.value);
-                    setErrors((p) => ({ ...p, deliveryFee: undefined }));
-                  }}
-                  className={`w-full bg-gray-50 border rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${
-                    errors.deliveryFee ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"
-                  }`}
+                  type="number" min="0" step="0.5" value={deliveryFee}
+                  onChange={(e) => { setDeliveryFee(e.target.value); setErrors((p) => ({ ...p, deliveryFee: undefined })); }}
+                  className={`w-full bg-gray-50 border rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${errors.deliveryFee ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"}`}
                 />
               </div>
               {errors.deliveryFee && <p className="text-xs text-red-500 mt-1">{errors.deliveryFee}</p>}
@@ -292,17 +340,9 @@ function AssignDriverModal({
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={commission}
-                  onChange={(e) => {
-                    setCommission(e.target.value);
-                    setErrors((p) => ({ ...p, commission: undefined }));
-                  }}
-                  className={`w-full bg-gray-50 border rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${
-                    errors.commission ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"
-                  }`}
+                  type="number" min="0" step="0.5" value={commission}
+                  onChange={(e) => { setCommission(e.target.value); setErrors((p) => ({ ...p, commission: undefined })); }}
+                  className={`w-full bg-gray-50 border rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition ${errors.commission ? "border-red-400 focus:ring-red-300" : "border-gray-200 focus:ring-blue-500"}`}
                 />
               </div>
               {errors.commission && <p className="text-xs text-red-500 mt-1">{errors.commission}</p>}
@@ -349,132 +389,139 @@ export default function OrdersManagement() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>("All Orders");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  // ── Cancel state ──────────────────────────────────────────────
+  // pendingCancelId  = the order id waiting for modal confirmation
+  // cancellingId     = the order id actively being cancelled (API call running)
+  const [pendingCancelId, setPendingCancelId]   = useState<string | null>(null);
+  const [cancellingId,    setCancellingId]       = useState<string | null>(null);
+
+  const [markingId,      setMarkingId]      = useState<string | null>(null);
   const [assigningOrder, setAssigningOrder] = useState<Order | null>(null);
 
   const PAGE_SIZE = 10;
 
-  useEffect(() => {
-    setPage(1);
-  }, [activeFilter, search]);
+  useEffect(() => { setPage(1); }, [activeFilter, search]);
 
   const { data, isLoading, isError, refetch } = useOrders({
     orderType: activeFilter === "All Orders" ? undefined : activeFilter,
-    keyword: search || undefined,
-    limit: PAGE_SIZE,
+    keyword:   search || undefined,
+    limit:     PAGE_SIZE,
     page,
   });
 
   const { data: driversData } = useDrivers({ sort: "-createdAt", limit: 20 });
   const drivers: Driver[] = driversData?.data ?? [];
-
-  const orders: Order[] = data?.data ?? [];
+  const orders:  Order[]  = data?.data ?? [];
 
   const pagination =
     (data as any)?.paginationResult ??
     (data as any)?.pagination ??
-    (data as any)?.meta ??
-    {};
+    (data as any)?.meta ?? {};
 
-  const totalDocs: number =
-    pagination?.totalDocs ??
-    pagination?.total ??
-    (data as any)?.results ??
-    0;
-
-  const totalPages: number =
-    pagination?.totalPages ??
-    pagination?.pages ??
-    (totalDocs > 0 ? Math.ceil(totalDocs / PAGE_SIZE) : 1);
-
-  const currentPage: number = pagination?.currentPage ?? pagination?.page ?? page;
+  const totalDocs:    number = pagination?.totalDocs ?? pagination?.total ?? (data as any)?.results ?? 0;
+  const totalPages:   number = pagination?.totalPages ?? pagination?.pages ?? (totalDocs > 0 ? Math.ceil(totalDocs / PAGE_SIZE) : 1);
+  const currentPage:  number = pagination?.currentPage ?? pagination?.page ?? page;
 
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
 
   const filterLabel = (f: FilterTab) => {
-    const key =
-      f === "All Orders"
-        ? "allOrders"
-        : f === "dine-in"
-          ? "dineIn"
-          : f === "takeaway"
-            ? "takeaway"
-            : "delivery";
+    const key = f === "All Orders" ? "allOrders" : f === "dine-in" ? "dineIn" : f === "takeaway" ? "takeaway" : "delivery";
     return t(`orders.management.filters.${key}`);
   };
 
   const filterEmoji = (f: FilterTab) => {
     if (f === "delivery") return "🛵 ";
     if (f === "takeaway") return "🥡 ";
-    if (f === "dine-in") return "🍽 ";
+    if (f === "dine-in")  return "🍽 ";
     return "";
   };
 
   const orderTypeLabel = (type?: string) => {
-    const key =
-      type === "dine-in" ? "dineIn" : type === "takeaway" ? "takeAway" : "delivery";
+    const key = type === "dine-in" ? "dineIn" : type === "takeaway" ? "takeAway" : "delivery";
     return t(`orders.management.types.${key}`);
   };
 
-  const isDeliveryOrder = (order: Order) => {
-    return String(order.orderType ?? "").toLowerCase() === "delivery";
-  };
+  const isDeliveryOrder = (order: Order) =>
+    String(order.orderType ?? "").toLowerCase() === "delivery";
 
-  const handleCancel = useCallback(
-    async (id: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!confirm(t("orders.management.confirmCancelOrder"))) return;
-      setCancellingId(id);
-      try {
-        await cancelOrderFn(id);
-        invalidateQuery("orders");
-        if (selectedOrder?.id === id || selectedOrder?._id === id) setSelectedOrder(null);
-      } catch (err) {
-        console.error(err);
-        alert(t("orders.management.failedToCancelOrder"));
-      } finally {
-        setCancellingId(null);
-      }
-    },
-    [selectedOrder, t]
-  );
-
-  // Mark as Ready
-  // - delivery: open assign driver modal
-  // - dine-in / takeaway: just update status, no modal
-  const handleMarkReady = useCallback(
-    async (order: Order) => {
-      const id = (order.id ?? order._id ?? "") as string;
-      setMarkingId(id);
-      try {
-        await updateOrderStatusFn(id, { status: "ready" });
-        invalidateQuery("orders");
-
-        if (isDeliveryOrder(order)) {
-          setAssigningOrder(order);
-        } else {
-          setAssigningOrder(null);
-        }
-
-        setSelectedOrder(null);
-      } catch (err) {
-        console.error(err);
-        alert(t("orders.management.failedToUpdateStatus"));
-      } finally {
-        setMarkingId(null);
-      }
-    },
-    [t]
-  );
-
-  const orderId = (o: Order) => (o.id ?? o._id ?? "") as string;
-  const canCancel = (o: Order) => !["cancelled", "completed"].includes((o.status ?? "").toLowerCase());
+  const orderId  = (o: Order) => (o.id ?? o._id ?? "") as string;
+  const canCancel    = (o: Order) => !["cancelled", "completed"].includes((o.status ?? "").toLowerCase());
   const canMarkReady = (o: Order) => !["ready", "completed", "cancelled"].includes((o.status ?? "").toLowerCase());
+
+  // ── Open cancel confirmation modal ─────────────────────────────
+  const handleCancelClick = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPendingCancelId(id);
+  }, []);
+
+  // ── Confirmed cancel → calls PATCH /orders/cancel/:id ──────────
+  const handleCancelConfirm = useCallback(async () => {
+    if (!pendingCancelId) return;
+    const id = pendingCancelId;
+    setCancellingId(id);
+    try {
+      await cancelOrderFn(id);          // → PATCH /api/v1/orders/cancel/:id
+      invalidateQuery("orders");
+      if (selectedOrder && (selectedOrder.id === id || selectedOrder._id === id))
+        setSelectedOrder(null);
+    } catch (err) {
+      console.error(err);
+      alert(t("orders.management.failedToCancelOrder"));
+    } finally {
+      setCancellingId(null);
+      setPendingCancelId(null);
+    }
+  }, [pendingCancelId, selectedOrder, t]);
+
+  const handleCancelModalClose = useCallback(() => {
+    if (cancellingId) return;   // don't close while API call is running
+    setPendingCancelId(null);
+  }, [cancellingId]);
+
+  // ── Mark as ready ───────────────────────────────────────────────
+  const handleMarkReady = useCallback(async (order: Order) => {
+    const id = (order.id ?? order._id ?? "") as string;
+    setMarkingId(id);
+    try {
+      await updateOrderStatusFn(id, { status: "ready" });
+      invalidateQuery("orders");
+      if (isDeliveryOrder(order)) setAssigningOrder(order);
+      else setAssigningOrder(null);
+      setSelectedOrder(null);
+    } catch (err) {
+      console.error(err);
+      alert(t("orders.management.failedToUpdateStatus"));
+    } finally {
+      setMarkingId(null);
+    }
+  }, [t]);
+
+  // ── Pending order for cancel modal ─────────────────────────────
+  const pendingOrder = pendingCancelId
+    ? orders.find((o) => orderId(o) === pendingCancelId) ??
+      (selectedOrder && orderId(selectedOrder) === pendingCancelId ? selectedOrder : null)
+    : null;
+
+  const pendingOrderNumber = pendingOrder
+    ? ((pendingOrder as any).orderNumber ?? pendingCancelId?.slice(-6) ?? "")
+    : (pendingCancelId?.slice(-6) ?? "");
 
   return (
     <div className="flex min-h-screen bg-slate-100 font-sans relative">
+
+      {/* ── Cancel confirmation modal ─────────────────────────── */}
+      {pendingCancelId && (
+        <CancelConfirmModal
+          orderNumber={pendingOrderNumber}
+          onConfirm={handleCancelConfirm}
+          onClose={handleCancelModalClose}
+          loading={cancellingId === pendingCancelId}
+        />
+      )}
+
+      {/* ── Assign driver modal ───────────────────────────────── */}
       {assigningOrder && (
         <AssignDriverModal
           order={assigningOrder}
@@ -485,12 +532,13 @@ export default function OrdersManagement() {
 
       <main className="flex-1 p-4 sm:p-6 min-w-0">
         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100">
+
+          {/* ── Top bar ──────────────────────────────────────── */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-5 flex-wrap">
             <div className="relative w-full sm:flex-1 sm:max-w-xs">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                 </svg>
               </span>
               <input
@@ -515,8 +563,7 @@ export default function OrdersManagement() {
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  {filterEmoji(f)}
-                  {filterLabel(f)}
+                  {filterEmoji(f)}{filterLabel(f)}
                 </button>
               ))}
             </div>
@@ -529,6 +576,7 @@ export default function OrdersManagement() {
             </button>
           </div>
 
+          {/* ── Loading ───────────────────────────────────────── */}
           {isLoading && (
             <div className="flex justify-center items-center py-16 text-slate-400 text-sm gap-2">
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -539,18 +587,17 @@ export default function OrdersManagement() {
             </div>
           )}
 
+          {/* ── Error ─────────────────────────────────────────── */}
           {isError && (
             <div className="text-center py-16">
               <p className="text-red-500 text-sm mb-3">{t("orders.management.failedToLoadOrders")}</p>
-              <button
-                onClick={refetch}
-                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm hover:bg-slate-200"
-              >
+              <button onClick={refetch} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm hover:bg-slate-200">
                 {t("common.retry")}
               </button>
             </div>
           )}
 
+          {/* ── Empty ─────────────────────────────────────────── */}
           {!isLoading && !isError && orders.length === 0 && (
             <div className="text-center py-16 text-slate-400 text-sm">
               {activeFilter === "delivery"
@@ -559,13 +606,14 @@ export default function OrdersManagement() {
             </div>
           )}
 
+          {/* ── Orders grid ───────────────────────────────────── */}
           {!isLoading && !isError && orders.length > 0 && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {orders.map((order) => {
-                  const id = orderId(order);
+                  const id     = orderId(order);
                   const status = (order.status ?? "").toLowerCase();
-                  const type = (order.orderType ?? "").toLowerCase();
+                  const type   = (order.orderType ?? "").toLowerCase();
 
                   return (
                     <div
@@ -587,26 +635,14 @@ export default function OrdersManagement() {
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-xs text-slate-500">
                               {type === "delivery"
-                                ? `📍 ${
-                                    (order as any).deliveryAddress ??
-                                    (order as any).customerLocation?.address ??
-                                    t("orders.management.delivery")
-                                  }`
-                                : `🍴 ${
-                                    order.tableNumber
-                                      ? t("orders.management.tableNumber", { tableNumber: order.tableNumber })
-                                      : "—"
-                                  }`}
+                                ? `📍 ${(order as any).deliveryAddress ?? (order as any).customerLocation?.address ?? t("orders.management.delivery")}`
+                                : `🍴 ${order.tableNumber ? t("orders.management.tableNumber", { tableNumber: order.tableNumber }) : "—"}`}
                             </span>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs text-slate-400">{timeAgo(order.createdAt, t)}</span>
-                          <span
-                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              typeBadge[type] ?? "bg-slate-100 text-slate-600"
-                            }`}
-                          >
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeBadge[type] ?? "bg-slate-100 text-slate-600"}`}>
                             {orderTypeLabel(order.orderType)}
                           </span>
                         </div>
@@ -621,21 +657,15 @@ export default function OrdersManagement() {
                           </p>
                         ))}
                         {(order.items?.length ?? 0) > 3 && (
-                          <p className="text-xs text-slate-400">
-                            +{(order.items?.length ?? 0) - 3} {t("orders.management.more")}
-                          </p>
+                          <p className="text-xs text-slate-400">+{(order.items?.length ?? 0) - 3} {t("orders.management.more")}</p>
                         )}
                         {order.notes && (
-                          <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
-                            ⚠ {order.notes}
-                          </p>
+                          <p className="text-xs text-red-500 flex items-center gap-1 mt-1">⚠ {order.notes}</p>
                         )}
                       </div>
 
                       {statusColor[status] ? (
-                        <p className={`font-bold text-sm mt-2 capitalize ${statusColor[status]}`}>
-                          {order.status}
-                        </p>
+                        <p className={`font-bold text-sm mt-2 capitalize ${statusColor[status]}`}>{order.status}</p>
                       ) : (
                         <div className="mt-3">
                           <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
@@ -644,15 +674,15 @@ export default function OrdersManagement() {
                         </div>
                       )}
 
+                      {/* ── Cancel button in card — new design ── */}
                       {canCancel(order) && (
                         <button
-                          onClick={(e) => handleCancel(id, e)}
+                          onClick={(e) => handleCancelClick(id, e)}
                           disabled={cancellingId === id}
-                          className="mt-3 text-xs text-red-400 hover:text-red-600 font-medium disabled:opacity-50 transition-colors"
+                          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-100 hover:border-red-300 hover:text-red-600 active:scale-95 transition-all disabled:opacity-50"
                         >
-                          {cancellingId === id
-                            ? t("orders.management.cancelling")
-                            : t("orders.management.cancelOrder")}
+                          <span className="text-xs">🚫</span>
+                          {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
                         </button>
                       )}
                     </div>
@@ -660,6 +690,7 @@ export default function OrdersManagement() {
                 })}
               </div>
 
+              {/* ── Pagination ─────────────────────────────────── */}
               <div className="mt-6 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 pt-4">
                 <p className="text-xs sm:text-sm text-slate-400">
                   {totalDocs > 0
@@ -689,9 +720,7 @@ export default function OrdersManagement() {
                     }, [])
                     .map((item, idx) =>
                       item === "…" ? (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 text-sm select-none">
-                          …
-                        </span>
+                        <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 text-sm select-none">…</span>
                       ) : (
                         <button
                           key={item}
@@ -722,31 +751,20 @@ export default function OrdersManagement() {
         </div>
       </main>
 
+      {/* ── Order detail sidebar ───────────────────────────────── */}
       {selectedOrder &&
         (() => {
-          const id = orderId(selectedOrder);
-          const total = (selectedOrder as any).total ?? 0;
-          const sub = (selectedOrder as any).subtotal ?? 0;
-          const tax = (selectedOrder as any).tax ?? 0;
-          const type = (selectedOrder.orderType ?? "").toLowerCase();
+          const id    = orderId(selectedOrder);
+          const total = (selectedOrder as any).total    ?? 0;
+          const sub   = (selectedOrder as any).subtotal ?? 0;
+          const tax   = (selectedOrder as any).tax      ?? 0;
+          const type  = (selectedOrder.orderType ?? "").toLowerCase();
 
           return (
             <>
               <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setSelectedOrder(null)} />
+              <aside className="fixed lg:static bottom-0 lg:bottom-auto left-0 right-0 lg:left-auto lg:right-auto z-50 lg:z-auto w-full lg:w-72 max-h-[85vh] lg:max-h-none overflow-y-auto bg-slate-900 text-white p-5 flex flex-col gap-4 rounded-t-2xl lg:rounded-none shrink-0">
 
-              <aside
-                className="
-              fixed lg:static bottom-0 lg:bottom-auto
-              left-0 right-0 lg:left-auto lg:right-auto
-              z-50 lg:z-auto
-              w-full lg:w-72
-              max-h-[85vh] lg:max-h-none
-              overflow-y-auto
-              bg-slate-900 text-white
-              p-5 flex flex-col gap-4
-              rounded-t-2xl lg:rounded-none shrink-0
-            "
-              >
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="font-bold text-lg">
@@ -759,37 +777,23 @@ export default function OrdersManagement() {
                     </p>
                     {type === "delivery" && (
                       <p className="text-xs text-blue-400 mt-1">
-                        📍{" "}
-                        {(selectedOrder as any).deliveryAddress ??
-                          (selectedOrder as any).customerLocation?.address ??
-                          t("orders.management.deliveryOrder")}
+                        📍 {(selectedOrder as any).deliveryAddress ?? (selectedOrder as any).customerLocation?.address ?? t("orders.management.deliveryOrder")}
                       </p>
                     )}
                   </div>
-                  <button
-                    onClick={() => setSelectedOrder(null)}
-                    className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
-                  >
-                    ×
-                  </button>
+                  <button onClick={() => setSelectedOrder(null)} className="text-slate-400 hover:text-white transition-colors text-xl leading-none">×</button>
                 </div>
 
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 bg-blue-500 rounded-sm" />
-                    <span className="text-sm font-semibold text-slate-300">
-                      {t("orders.management.orderItems")}
-                    </span>
+                    <span className="text-sm font-semibold text-slate-300">{t("orders.management.orderItems")}</span>
                   </div>
                   <div className="space-y-2">
                     {(selectedOrder.items ?? []).map((item, i) => (
                       <div key={i} className="flex justify-between text-sm">
-                        <span className="text-slate-300">
-                          {item.quantity}x {(item as any).name ?? item.itemId}
-                        </span>
-                        <span className="text-white font-medium">
-                          ${((item as any).price ?? 0) * item.quantity}
-                        </span>
+                        <span className="text-slate-300">{item.quantity}x {(item as any).name ?? item.itemId}</span>
+                        <span className="text-white font-medium">${((item as any).price ?? 0) * item.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -797,12 +801,10 @@ export default function OrdersManagement() {
 
                 <div className="border-t border-slate-700 pt-3 space-y-1.5">
                   <div className="flex justify-between text-sm text-slate-400">
-                    <span>{t("orders.management.subtotal")}</span>
-                    <span>${sub.toFixed(2)}</span>
+                    <span>{t("orders.management.subtotal")}</span><span>${sub.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-slate-400">
-                    <span>{t("orders.management.tax")}</span>
-                    <span>${tax.toFixed(2)}</span>
+                    <span>{t("orders.management.tax")}</span><span>${tax.toFixed(2)}</span>
                   </div>
                   <div className="border-t border-slate-700 pt-2 flex justify-between font-bold text-base">
                     <span>{t("orders.management.total")}</span>
@@ -831,33 +833,24 @@ export default function OrdersManagement() {
                     {markingId === id ? (
                       <>
                         <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
                         {t("orders.management.updating")}
                       </>
-                    ) : (
-                      t("orders.management.markAsReady")
-                    )}
+                    ) : t("orders.management.markAsReady")}
                   </button>
                 )}
 
+                {/* ── Cancel button in sidebar — new design ───── */}
                 {canCancel(selectedOrder) && (
                   <button
-                    onClick={(e) => handleCancel(id, e)}
+                    onClick={(e) => handleCancelClick(id, e)}
                     disabled={cancellingId === id}
-                    className="w-full py-2.5 rounded-xl border border-red-500/40 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-300 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {cancellingId === id
-                      ? t("orders.management.cancelling")
-                      : t("orders.management.cancelOrder")}
+                    <span>🚫</span>
+                    {cancellingId === id ? t("orders.management.cancelling") : t("orders.management.cancelOrder")}
                   </button>
                 )}
               </aside>

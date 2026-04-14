@@ -70,9 +70,8 @@ export type TablesQueryParams = {
 export type CreateTableDTO = {
   tableNumber: string;
   capacity: number;
-  location: TableLocation;
-  branchId: string;
-  notes?: string;
+  location: "indoor" | "outdoor";
+  branchId?: string;
 };
 
 export type UpdateTableDTO = Partial<{

@@ -129,7 +129,7 @@ const DonutChart = ({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <p className="text-lg font-bold text-gray-800">{total.toLocaleString()}</p>
-            <p className="text-[10px] text-gray-400">{t("orders")}</p>
+            <p className="text-[10px] text-gray-400">{t("orders.title")}</p>
           </div>
         </div>
       </div>
@@ -166,7 +166,7 @@ const TopDishes = ({
       <p className="font-bold text-gray-800 mb-4">{t("topSellingDishes")}</p>
       <div className="grid grid-cols-3 text-xs font-semibold text-gray-400 mb-3 pb-2 border-b border-gray-50">
         <span className="text-blue-500">{t("dishName")}</span>
-        <span className="text-center">{t("orders")}</span>
+        <span className="text-center">{t("orders.title")}</span>
         <span className="text-right text-red-400">{t("revenue")}</span>
       </div>
       {dishes.length === 0 ? (
@@ -669,7 +669,7 @@ export default function BranchReports() {
                 <thead>
                   <tr className="border-b border-gray-200 text-gray-500">
                     <th className="py-2 text-left font-medium">{t("category")}</th>
-                    <th className="py-2 text-right font-medium">{t("orders")}</th>
+                    <th className="py-2 text-right font-medium">{t("orders.title")}</th>
                     <th className="py-2 text-right font-medium">{t("revenue")}</th>
                   </tr>
                 </thead>
@@ -698,7 +698,7 @@ export default function BranchReports() {
               <thead>
                 <tr className="border-b border-gray-200 text-gray-500">
                   <th className="py-2 text-left font-medium">{t("status")}</th>
-                  <th className="py-2 text-right font-medium">{t("orders")}</th>
+                  <th className="py-2 text-right font-medium">{t("orders.title")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -727,7 +727,7 @@ export default function BranchReports() {
                 <thead>
                   <tr className="border-b border-gray-200 text-gray-500">
                     <th className="py-2 text-left font-medium">{t("dishName")}</th>
-                    <th className="py-2 text-right font-medium">{t("orders")}</th>
+                    <th className="py-2 text-right font-medium">{t("orders.title")}</th>
                     <th className="py-2 text-right font-medium">{t("revenue")}</th>
                   </tr>
                 </thead>

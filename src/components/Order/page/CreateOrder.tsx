@@ -252,7 +252,6 @@ export default function CreateOrder() {
 
   // ── Receipt state ──
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
-  const [pendingNavigateTo, setPendingNavigateTo] = useState<string>("/dashboard/orders");
 
   // ── Branch ──
   const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
@@ -346,9 +345,7 @@ export default function CreateOrder() {
       invalidateQuery("orders");
 
       // ── Determine where to navigate after receipt is closed ──
-      const nextRoute =
-        orderType === "delivery" ? "/dashboard/orders" : "/dashboard/dispatches";
-
+      
       if (orderType === "delivery") {
         await new Promise((r) => setTimeout(r, 800));
         invalidateQuery("dispatches");
@@ -382,7 +379,6 @@ export default function CreateOrder() {
         customerAddress: orderType === "delivery" ? customerAddress.trim() : undefined,
       };
 
-      setPendingNavigateTo(nextRoute);
       setReceiptData(receipt);
       setShowOrder(false);
     } catch (err: any) {
@@ -401,17 +397,13 @@ export default function CreateOrder() {
     }
   };
 
-  // ── Close receipt and navigate ──
-  const handleReceiptClose = () => {
-    setReceiptData(null);
-    navigate(pendingNavigateTo);
-  };
+const handleReceiptClose = () => {
+  setReceiptData(null);
+};
 
-  // ── Print done → navigate ──
-  const handlePrintDone = () => {
-    setReceiptData(null);
-    navigate(pendingNavigateTo);
-  };
+const handlePrintDone = () => {
+  setReceiptData(null);
+};
 
   // ── Order type meta ──
   const orderTypeMeta: Record<
@@ -486,16 +478,17 @@ export default function CreateOrder() {
           <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 mb-4 sm:mb-6">
             <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
               <span className="text-base">👤</span>
-              Customer Information
+              {t("orders.create.customerInformation")}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
-                  Customer Name <span className="text-red-400">*</span>
+                  {t("orders.create.customerName")}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Ahmed Ali"
+                  placeholder={t("orders.create.customerNamePlaceholder")}
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-300"
@@ -503,11 +496,11 @@ export default function CreateOrder() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
-                  Phone Number
+                  {t("orders.create.customerPhone")}
                 </label>
                 <input
                   type="tel"
-                  placeholder="e.g. 050 123 4567"
+                  placeholder={t("orders.create.customerPhonePlaceholder")}
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-300"
@@ -515,11 +508,11 @@ export default function CreateOrder() {
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1">
-                  Delivery Address
+                  {t("orders.create.customerAddress")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Apt 4B, Sunshine Building, Al Safa Street, Business Bay"
+                  placeholder={t("orders.create.customerAddressPlaceholder")}
                   value={customerAddress}
                   onChange={(e) => setCustomerAddress(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-slate-300"

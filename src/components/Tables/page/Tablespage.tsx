@@ -1,9 +1,8 @@
-// src/components/Tables/page/TablesPage.tsx
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, MoreHorizontal } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
-import AddTableModal    from "../page/Addtablemodal";
+import AddTableModal from "../page/Addtablemodal";
 import AssignGuestModal from "../../Finance/page/Assignguestmodal";
 import {
   useTables,
@@ -16,18 +15,18 @@ import type { ApiBranch } from "../../layout/Topbar";
 
 /* ── types ─────────────────────────────────────────── */
 type TableStatus = "available" | "occupied" | "reserved";
-type AreaFilter  = "All Tables" | "indoor" | "outdoor";
+type AreaFilter = "All Tables" | "indoor" | "outdoor";
 
 const STATUS_BADGE: Record<string, string> = {
-  reserved:  "bg-yellow-100 text-yellow-700",
-  available: "bg-green-100  text-green-700",
-  occupied:  "bg-pink-100   text-pink-700",
+  reserved: "bg-yellow-100 text-yellow-700",
+  available: "bg-green-100 text-green-700",
+  occupied: "bg-pink-100 text-pink-700",
 };
 
 /* ── TableCard ──────────────────────────────────────── */
 const TableCard: React.FC<{
-  table:     any;
-  onAssign:  (id: string, tableNumber: string) => void;
+  table: any;
+  onAssign: (id: string, tableNumber: string) => void;
   onCheckIn: (id: string, tableNumber: string) => void;
   onRelease: (id: string) => void;
 }> = ({ table, onAssign, onCheckIn, onRelease }) => {
@@ -35,17 +34,17 @@ const TableCard: React.FC<{
   const status = table.status?.toLowerCase() ?? "available";
 
   const STATUS_BTN: Record<string, { label: string; style: string }> = {
-    reserved:  { label: t("tables.page.card.checkIn"),     style: "bg-yellow-400 hover:bg-yellow-500 text-white" },
-    available: { label: t("tables.page.card.assignTable"), style: "bg-green-500  hover:bg-green-600  text-white" },
-    occupied:  { label: t("tables.page.card.release"),     style: "bg-purple-500 hover:bg-purple-600 text-white" },
+    reserved: { label: t("tables.page.card.checkIn"), style: "bg-yellow-400 hover:bg-yellow-500 text-white" },
+    available: { label: t("tables.page.card.assignTable"), style: "bg-green-500 hover:bg-green-600 text-white" },
+    occupied: { label: t("tables.page.card.release"), style: "bg-purple-500 hover:bg-purple-600 text-white" },
   };
 
   const btn = STATUS_BTN[status] ?? STATUS_BTN["available"];
 
   const handlePrimary = () => {
     if (status === "available") onAssign(table.id, table.tableNumber);
-    if (status === "reserved")  onCheckIn(table.id, table.tableNumber);
-    if (status === "occupied")  onRelease(table.id);
+    if (status === "reserved") onCheckIn(table.id, table.tableNumber);
+    if (status === "occupied") onRelease(table.id);
   };
 
   return (
@@ -58,7 +57,11 @@ const TableCard: React.FC<{
             {t("tables.page.card.capacity")} {table.capacity}
           </p>
         </div>
-        <span className={`text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-full capitalize ${STATUS_BADGE[status] ?? "bg-gray-100 text-gray-600"}`}>
+        <span
+          className={`text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-full capitalize ${
+            STATUS_BADGE[status] ?? "bg-gray-100 text-gray-600"
+          }`}
+        >
           {table.status}
         </span>
       </div>
@@ -68,9 +71,9 @@ const TableCard: React.FC<{
         {status === "available" ? (
           <div className="flex flex-col items-center py-3 sm:py-4 text-slate-200">
             <svg width="40" height="34" viewBox="0 0 48 40" fill="none">
-              <ellipse cx="24" cy="8" rx="20" ry="6" stroke="#cbd5e1" strokeWidth="2" fill="none"/>
-              <line x1="24" y1="14" x2="24" y2="38" stroke="#cbd5e1" strokeWidth="2"/>
-              <line x1="14" y1="34" x2="34" y2="34" stroke="#cbd5e1" strokeWidth="2"/>
+              <ellipse cx="24" cy="8" rx="20" ry="6" stroke="#cbd5e1" strokeWidth="2" fill="none" />
+              <line x1="24" y1="14" x2="24" y2="38" stroke="#cbd5e1" strokeWidth="2" />
+              <line x1="14" y1="34" x2="34" y2="34" stroke="#cbd5e1" strokeWidth="2" />
             </svg>
             <p className="text-xs text-slate-400 mt-2">{t("tables.page.card.readyForGuests")}</p>
           </div>
@@ -78,7 +81,9 @@ const TableCard: React.FC<{
           <div className="space-y-1.5 mb-3">
             {table.currentCustomer?.name && (
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">👤</div>
+                <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+                  👤
+                </div>
                 <div className="min-w-0">
                   <p className="text-[9px] sm:text-[10px] text-slate-400">{t("tables.page.card.guest")}</p>
                   <p className="font-medium text-[11px] sm:text-xs text-slate-800 truncate">
@@ -89,19 +94,26 @@ const TableCard: React.FC<{
             )}
             {table.reservedFor && (
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">🕐</div>
+                <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+                  🕐
+                </div>
                 <div>
                   <p className="text-[9px] sm:text-[10px] text-slate-400">{t("tables.page.card.reservedFor")}</p>
                   <p className="font-medium text-[11px] sm:text-xs text-slate-800">
                     {new Date(table.reservedFor).toLocaleString("en-GB", {
-                      hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      day: "2-digit",
+                      month: "short",
                     })}
                   </p>
                 </div>
               </div>
             )}
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">📍</div>
+              <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+                📍
+              </div>
               <div>
                 <p className="text-[9px] sm:text-[10px] text-slate-400">{t("tables.page.card.location")}</p>
                 <p className="font-medium text-[11px] sm:text-xs text-slate-800 capitalize">{table.location}</p>
@@ -113,8 +125,10 @@ const TableCard: React.FC<{
 
       {/* Actions */}
       <div className="flex gap-2 mt-auto pt-2">
-        <button onClick={handlePrimary}
-          className={`flex-1 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${btn.style}`}>
+        <button
+          onClick={handlePrimary}
+          className={`flex-1 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${btn.style}`}
+        >
           {btn.label}
         </button>
         <button className="w-8 sm:w-9 h-8 sm:h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 transition-colors flex-shrink-0">
@@ -130,19 +144,21 @@ export default function TablesPage() {
   const { t } = useTranslation();
 
   // ── Branch resolution ──
-  const outlet            = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
-  const activeBranch      = outlet?.activeBranch ?? null;
-  const effectiveBranchId = activeBranch?.id ?? activeBranch?._id ??
+  const outlet = useOutletContext<{ activeBranch?: ApiBranch | null } | undefined>();
+  const activeBranch = outlet?.activeBranch ?? null;
+  const effectiveBranchId =
+    activeBranch?.id ??
+    activeBranch?._id ??
     (activeBranch?.branchId != null ? String(activeBranch.branchId) : undefined);
 
   // ── State ──
-  const [search,         setSearch]         = useState("");
-  const [areaFilter,     setAreaFilter]     = useState<AreaFilter>("All Tables");
-  const [statusFilter,   setStatusFilter]   = useState<string>("");
-  const [showAddModal,   setShowAddModal]   = useState(false);
-  const [actionLoading,  setActionLoading]  = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [areaFilter, setAreaFilter] = useState<AreaFilter>("All Tables");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [assigningTable, setAssigningTable] = useState<{ id: string; tableNumber: string } | null>(null);
-  const [page,           setPage]           = useState(1);
+  const [page, setPage] = useState(1);
 
   const PAGE_SIZE = 12;
 
@@ -157,50 +173,46 @@ export default function TablesPage() {
   });
 
   const { data: statsData } = useTableStats(effectiveBranchId);
-  const stats  = statsData?.data;
+  const stats = statsData?.data;
   const tables = data?.data ?? [];
 
   // ── Server-side pagination ──────────────────────────────────────────────────
   const pagination = (data as any)?.paginationResult ?? (data as any)?.pagination ?? (data as any)?.meta ?? {};
 
-  const totalDocs: number  = pagination?.totalDocs ?? pagination?.total ?? (data as any)?.results ?? 0;
-  const totalPages: number = pagination?.totalPages ?? pagination?.pages ?? (totalDocs > 0 ? Math.ceil(totalDocs / PAGE_SIZE) : 1);
+  const totalDocs: number = pagination?.totalDocs ?? pagination?.total ?? (data as any)?.results ?? 0;
+  const totalPages: number =
+    pagination?.totalPages ?? pagination?.pages ?? (totalDocs > 0 ? Math.ceil(totalDocs / PAGE_SIZE) : 1);
   const serverPage: number = pagination?.currentPage ?? pagination?.page ?? page;
 
   const canGoPrev = serverPage > 1;
   const canGoNext = serverPage < totalPages;
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // search is now sent to server, so filtered = tables directly
-  const filtered = tables.filter((t) =>
-    search ? t.tableNumber?.toLowerCase().includes(search.toLowerCase()) : true
-  );
+  const filtered = tables.filter((t) => (search ? t.tableNumber?.toLowerCase().includes(search.toLowerCase()) : true));
 
   // ── Stat cards ──
-  const total     = stats?.total     ?? totalDocs;
-  const occupied  = stats?.occupied  ?? tables.filter((t) => t.status === "occupied").length;
+  const total = stats?.total ?? totalDocs;
+  const occupied = stats?.occupied ?? tables.filter((t) => t.status === "occupied").length;
   const available = stats?.available ?? tables.filter((t) => t.status === "available").length;
-  const reserved  = stats?.reserved  ?? tables.filter((t) => t.status === "reserved").length;
+  const reserved = stats?.reserved ?? tables.filter((t) => t.status === "reserved").length;
 
   const statCards = [
-    { label: t("tables.page.stats.totalTables"), value: total,     pct: 100,                                   color: "bg-blue-600"   },
-    { label: t("tables.page.stats.occupied"),    value: occupied,  pct: total ? (occupied  / total) * 100 : 0, color: "bg-red-500"    },
-    { label: t("tables.page.stats.available"),   value: available, pct: total ? (available / total) * 100 : 0, color: "bg-green-500"  },
-    { label: t("tables.page.stats.reserved"),    value: reserved,  pct: total ? (reserved  / total) * 100 : 0, color: "bg-yellow-400" },
+    { label: t("tables.page.stats.totalTables"), value: total, pct: 100, color: "bg-blue-600" },
+    { label: t("tables.page.stats.occupied"), value: occupied, pct: total ? (occupied / total) * 100 : 0, color: "bg-red-500" },
+    { label: t("tables.page.stats.available"), value: available, pct: total ? (available / total) * 100 : 0, color: "bg-green-500" },
+    { label: t("tables.page.stats.reserved"), value: reserved, pct: total ? (reserved / total) * 100 : 0, color: "bg-yellow-400" },
   ];
 
   // ── Handlers ──
-  const handleAddTable = async (tableData: {
-    tableNumber: string; seats: number; area: string; branchId?: string;
-  }) => {
-    if (!effectiveBranchId) return;
+  const handleAddTable = async (tableData: { tableNumber: string; seats: number; area: string; branchId?: string }) => {
     try {
       await createTableFn({
         tableNumber: tableData.tableNumber,
-        capacity:    tableData.seats,
-        location:    tableData.area.toLowerCase().includes("outdoor") ? "outdoor" : "indoor",
-        branchId:    effectiveBranchId,
+        capacity: tableData.seats,
+        location: tableData.area.toLowerCase().includes("outdoor") ? "outdoor" : "indoor",
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
       });
+
       invalidateQuery("tables");
       refetch();
     } catch (err) {
@@ -231,7 +243,6 @@ export default function TablesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((s) => (
@@ -254,7 +265,10 @@ export default function TablesPage() {
               type="text"
               placeholder={t(`${tb}.searchPlaceholder`)}
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="w-full pl-8 pr-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -263,23 +277,25 @@ export default function TablesPage() {
             {(["All Tables", "indoor", "outdoor"] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => { setAreaFilter(f); setPage(1); }}
+                onClick={() => {
+                  setAreaFilter(f);
+                  setPage(1);
+                }}
                 className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium capitalize transition-all ${
                   areaFilter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
-                {f === "All Tables"
-                  ? t(`${tb}.allTables`)
-                  : f === "indoor"
-                  ? t(`${tb}.indoor`)
-                  : t(`${tb}.outdoor`)}
+                {f === "All Tables" ? t(`${tb}.allTables`) : f === "indoor" ? t(`${tb}.indoor`) : t(`${tb}.outdoor`)}
               </button>
             ))}
           </div>
 
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
             className="px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-600 bg-white outline-none"
           >
             <option value="">{t(`${tb}.allStatus`)}</option>
@@ -304,10 +320,7 @@ export default function TablesPage() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {filtered.map((table) => (
-              <div
-                key={table.id}
-                className={actionLoading === table.id ? "opacity-50 pointer-events-none" : ""}
-              >
+              <div key={table.id} className={actionLoading === table.id ? "opacity-50 pointer-events-none" : ""}>
                 <TableCard
                   table={table}
                   onAssign={(id, tableNumber) => setAssigningTable({ id, tableNumber })}
@@ -357,9 +370,7 @@ export default function TablesPage() {
                         onClick={() => setPage(item as number)}
                         disabled={isLoading}
                         className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 ${
-                          item === serverPage
-                            ? "bg-blue-600 text-white"
-                            : "hover:bg-slate-100 text-slate-600"
+                          item === serverPage ? "bg-blue-600 text-white" : "hover:bg-slate-100 text-slate-600"
                         }`}
                       >
                         {item}
@@ -377,7 +388,6 @@ export default function TablesPage() {
               </div>
             </div>
           )}
-          {/* ─────────────────────────────────────────────────────────────────── */}
         </>
       )}
 
@@ -387,6 +397,7 @@ export default function TablesPage() {
         onClose={() => setShowAddModal(false)}
         onAdd={handleAddTable}
         branchId={effectiveBranchId}
+        branchName={activeBranch?.name}
       />
 
       <AssignGuestModal
